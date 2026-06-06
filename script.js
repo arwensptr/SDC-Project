@@ -60,29 +60,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     html.setAttribute('data-theme', newTheme);
     localStorage.setItem('dashboard-theme', newTheme);
 
-    // Tunggu transisi CSS selesai (300ms) sebelum meng-update grafik yang berat.
-    // Ini mencegah Javascript memblokir animasi browser sehingga transisi tidak "patah-patah".
-    setTimeout(() => {
-      const activePage = document.querySelector('.page.active');
-      if (activePage) {
-        const textColor = newTheme === 'dark' ? '#f0f2f8' : '#111827';
-        const gridColor = newTheme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+    // Update grafik secara sinkron (instan) tanpa setTimeout agar perubahan teks tidak mengalami jeda/lag.
+    const activePage = document.querySelector('.page.active');
+    if (activePage) {
+      const textColor = newTheme === 'dark' ? '#f0f2f8' : '#111827';
+      const gridColor = newTheme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
 
-        activePage.querySelectorAll('.js-plotly-plot').forEach(c => {
-          Plotly.relayout(c, {
-            'font.color': textColor,
-            'xaxis.gridcolor': gridColor,
-            'yaxis.gridcolor': gridColor,
-            'yaxis2.color': textColor,
-            'legend.font.color': textColor
-          });
-          Plotly.restyle(c, {
-            'textfont.color': textColor,
-            'outsidetextfont.color': textColor
-          });
+      activePage.querySelectorAll('.js-plotly-plot').forEach(c => {
+        Plotly.relayout(c, {
+          'font.color': textColor,
+          'xaxis.gridcolor': gridColor,
+          'yaxis.gridcolor': gridColor,
+          'yaxis2.color': textColor,
+          'legend.font.color': textColor
         });
-      }
-    }, 50);
+        Plotly.restyle(c, {
+          'textfont.color': textColor,
+          'outsidetextfont.color': textColor
+        });
+      });
+    }
   });
 
   // ── 3. LIVE CLOCK ────────────────────────────────────────────────
@@ -728,7 +725,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           e.target.style.background = '#6C63FF';
           e.target.style.color = 'white';
           e.target.classList.add('active');
+          
           renderClusteringPage(e.target.getAttribute('data-value'));
+          
+          // Force layout recalculation to prevent squished (kecut) charts after first tab change
+          void document.body.offsetHeight;
+          const activePage = document.querySelector('.page.active');
+          if (activePage) {
+            activePage.querySelectorAll('.js-plotly-plot').forEach(c => {
+              Plotly.Plots.resize(c);
+            });
+          }
         });
       });
     }

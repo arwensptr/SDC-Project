@@ -74,10 +74,12 @@ body {
   line-height: 1.5;
   font-weight: 400;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-.theme-transitioning * {
-  transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease, fill 0.4s ease, stroke 0.4s ease !important;
+/* Transisi lembut HANYA pada elemen kontainer agar tidak membebani browser (patah-patah) */
+.header, .kpi-card, .chart-card, .insight-card, .reco-card, .nav-item, .segment-btn, .hm-table, th, td {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .header {
