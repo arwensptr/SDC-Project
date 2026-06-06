@@ -17,28 +17,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       const targetPage = document.getElementById(`page-${target}`);
       if (targetPage) {
         targetPage.classList.add('active');
-        
-        // Aplikasikan tema terkini ke grafik sebelum di-resize
-        const currentTheme = html.getAttribute('data-theme') || 'dark';
-        const textColor = currentTheme === 'dark' ? '#f0f2f8' : '#111827';
-        const gridColor = currentTheme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
 
-        // Paksa browser me-render ulang layout (reflow) agar Plotly bisa membaca dimensi sebelum di-paint
-        void targetPage.offsetHeight;
-
-        targetPage.querySelectorAll('.js-plotly-plot').forEach(c => {
-          Plotly.relayout(c, {
-            'font.color': textColor,
-            'xaxis.gridcolor': gridColor,
-            'yaxis.gridcolor': gridColor,
-            'yaxis2.color': textColor,
-            'legend.font.color': textColor
+        // Biarkan browser render satu frame dulu (display:flex sudah aktif),
+        // baru resize — ini mencegah Plotly membaca dimensi 0
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            targetPage.querySelectorAll('.js-plotly-plot').forEach(c => {
+              Plotly.Plots.resize(c);
+            });
           });
-          Plotly.restyle(c, {
-            'textfont.color': textColor,
-            'outsidetextfont.color': textColor
-          });
-          Plotly.Plots.resize(c);
         });
       }
     });
@@ -57,20 +44,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     const currentTheme = html.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
+    // Ubah atribut tema di root — CSS vars langsung berlaku (instan, tanpa transition di body)
     html.setAttribute('data-theme', newTheme);
     localStorage.setItem('dashboard-theme', newTheme);
 
-    // Update grafik secara sinkron (instan) tanpa setTimeout agar perubahan teks tidak mengalami jeda/lag.
-    const activePage = document.querySelector('.page.active');
-    if (activePage) {
-      const textColor = newTheme === 'dark' ? '#f0f2f8' : '#111827';
-      const gridColor = newTheme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+    const textColor = newTheme === 'dark' ? '#f0f2f8' : '#111827';
+    const gridColor = newTheme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
 
-      activePage.querySelectorAll('.js-plotly-plot').forEach(c => {
+    // Update SEMUA grafik di semua page (bukan hanya yang aktif)
+    // agar saat pindah page tidak ada grafik yang masih pakai warna lama
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.js-plotly-plot').forEach(c => {
         Plotly.relayout(c, {
           'font.color': textColor,
+          'paper_bgcolor': 'rgba(0,0,0,0)',
+          'plot_bgcolor': 'rgba(0,0,0,0)',
           'xaxis.gridcolor': gridColor,
+          'xaxis.zerolinecolor': gridColor,
           'yaxis.gridcolor': gridColor,
+          'yaxis.zerolinecolor': gridColor,
           'yaxis2.color': textColor,
           'legend.font.color': textColor
         });
@@ -79,7 +71,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           'outsidetextfont.color': textColor
         });
       });
-    }
+    });
   });
 
   // ── 3. LIVE CLOCK ────────────────────────────────────────────────
@@ -725,17 +717,22 @@ document.addEventListener('DOMContentLoaded', async () => {
           e.target.style.background = '#6C63FF';
           e.target.style.color = 'white';
           e.target.classList.add('active');
-          
-          renderClusteringPage(e.target.getAttribute('data-value'));
-          
-          // Force layout recalculation to prevent squished (kecut) charts after first tab change
-          void document.body.offsetHeight;
-          const activePage = document.querySelector('.page.active');
-          if (activePage) {
-            activePage.querySelectorAll('.js-plotly-plot').forEach(c => {
-              Plotly.Plots.resize(c);
+
+          // Tunggu satu frame agar container sudah settled sebelum Plotly.react membaca dimensi
+          // — ini mencegah chart kecut/squished saat pertama kali ganti sektor
+          requestAnimationFrame(() => {
+            renderClusteringPage(e.target.getAttribute('data-value'));
+
+            // Resize setelah render selesai (frame berikutnya)
+            requestAnimationFrame(() => {
+              const activePage = document.querySelector('.page.active');
+              if (activePage) {
+                activePage.querySelectorAll('.js-plotly-plot').forEach(c => {
+                  Plotly.Plots.resize(c);
+                });
+              }
             });
-          }
+          });
         });
       });
     }
@@ -836,19 +833,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const recommendations = [
         {
-          icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>', 
+          icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>',
           title: 'Sinergi Promosi Media Sosial & Kualitas Layanan', priority: 'high', priorityLabel: 'Fokus Pelaku Usaha',
           desc: `Promosi digital efektif meningkatkan jumlah ulasan dan volume pengunjung. Namun, <strong>rating murni dipengaruhi oleh kualitas layanan</strong> di lapangan. Oleh karena itu, manfaatkan media sosial sebagai mesin pendatang pelanggan (akuisisi), namun pastikan terus berbenah meningkatkan layanan demi menjaga kepuasan pengunjung (retensi).`,
           metric: `Aktivitas medsos berbanding lurus dengan peningkatan ulasan (reviews), namun independen terhadap skor penilaian (rating).`
         },
         {
-          icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>', 
+          icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>',
           title: 'Rekomendasi Jangka Pendek (Penjangkauan & Pemetaan)', priority: 'high', priorityLabel: 'Prioritas Pemerintah',
           desc: `Manfaatkan model clustering untuk memetakan usaha di segmen literasi digital terendah. Lakukan pendekatan proaktif (jemput bola) untuk memberikan bantuan teknis dasar (seperti pembuatan titik lokasi peta & akun bisnis) sekaligus melakukan survei mendalam guna mengidentifikasi hambatan utama promosi digital mereka.`,
           metric: `Fokus: Pendataan spesifik dan pendampingan langsung pada klaster terbawah.`
         },
         {
-          icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>', 
+          icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>',
           title: 'Rekomendasi Jangka Panjang (Edukasi & Keberlanjutan)', priority: 'medium', priorityLabel: 'Program Lanjutan',
           desc: `Kemenparekraf perlu menyelenggarakan program pembinaan berkelanjutan agar pelaku usaha menguasai strategi promosi secara mandiri. Program harus diiringi dengan pendampingan berkala terhadap badan usaha prioritas, serta pembukaan pusat layanan terpadu (<em>helpdesk digital</em>) berbasis tautan daring untuk permohonan pendampingan operasional.`,
           metric: `Tujuan: Adopsi digital maksimal, engagement tinggi, dan kemandirian pelaku usaha.`

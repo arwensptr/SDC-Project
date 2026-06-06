@@ -74,13 +74,11 @@ body {
   line-height: 1.5;
   font-weight: 400;
   overflow-x: hidden;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  /* Tidak ada transition: tema ganti instan, tidak ada teks lag */
 }
 
-/* Transisi lembut HANYA pada elemen kontainer agar tidak membebani browser (patah-patah) */
-.header, .kpi-card, .chart-card, .insight-card, .reco-card, .nav-item, .segment-btn, .hm-table, th, td {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
-}
+/* Transisi dihapus untuk theme-toggle agar perubahan terjadi secara instan (0ms) 
+   dan tidak tertahan (ngelag) oleh proses render ulang grafik Plotly. */
 
 .header {
   position: sticky;
@@ -239,7 +237,8 @@ body {
 
 .page {
   display: none;
-  animation: fadeUp 0.35s ease;
+  /* Hanya opacity: transform translateY menyebabkan Plotly salah hitung dimensi saat resize */
+  animation: fadeIn 0.22s ease;
   width: 100%;
 }
 
@@ -249,15 +248,13 @@ body {
   gap: 16px;
 }
 
-@keyframes fadeUp {
+@keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(12px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -288,7 +285,8 @@ body {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 18px 20px;
-  transition: transform var(--transition), box-shadow var(--transition);
+  /* Hanya transform & shadow yang di-transition, bukan color */
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
   min-width: 0;
 }
 
@@ -441,7 +439,8 @@ body {
   flex-direction: column;
   justify-content: center;
   gap: 10px;
-  transition: border-color var(--transition);
+  /* transition hanya pada border-left-color, bukan seluruh card */
+  transition: border-left-color var(--transition);
   min-width: 0;
 }
 
@@ -672,16 +671,20 @@ body {
 
 /* ─── DOWNLOAD BUTTON ─────────────────────────────────────────── */
 .btn-download {
-  display: flex; align-items: center; gap: 7px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   padding: 7px 14px;
   background: var(--accent-purple-bg);
   color: var(--accent-purple);
   border: 1px solid var(--accent-purple);
   border-radius: 8px;
-  font-size: 13px; font-weight: 600;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   transition: background var(--transition), transform 0.15s;
 }
+
 .btn-download:hover {
   background: var(--accent-purple);
   color: #fff;
@@ -690,13 +693,19 @@ body {
 
 /* ─── MODAL OVERLAY ───────────────────────────────────────────── */
 .modal-overlay {
-  position: fixed; inset: 0;
+  position: fixed;
+  inset: 0;
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   z-index: 1000;
-  display: none; align-items: center; justify-content: center;
+  display: none;
+  align-items: center;
+  justify-content: center;
 }
-.modal-overlay.open { display: flex; }
+
+.modal-overlay.open {
+  display: flex;
+}
 
 .modal-box {
   background: var(--bg-surface);
@@ -704,48 +713,95 @@ body {
   border-radius: 16px;
   padding: 28px 32px;
   width: min(520px, 92vw);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
   animation: modalIn 0.22s ease;
 }
+
 @keyframes modalIn {
-  from { opacity: 0; transform: scale(0.94) translateY(10px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .modal-header {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 10px;
 }
-.modal-title { font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0; }
+
+.modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
 .modal-close {
-  background: none; border: none; cursor: pointer;
-  color: var(--text-secondary); font-size: 22px; line-height: 1;
-  padding: 2px 6px; border-radius: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 22px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 6px;
   transition: background var(--transition);
 }
-.modal-close:hover { background: var(--bg-hover); }
 
-.modal-desc { font-size: 13px; color: var(--text-secondary); margin: 0 0 20px; }
+.modal-close:hover {
+  background: var(--bg-hover);
+}
 
-.modal-section { margin-bottom: 20px; }
+.modal-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 20px;
+}
+
+.modal-section {
+  margin-bottom: 20px;
+}
+
 .modal-label {
-  display: block; font-size: 12px; font-weight: 600;
-  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em;
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
   margin-bottom: 10px;
 }
-.modal-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.modal-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
 .chip {
   padding: 6px 14px;
   border-radius: 20px;
-  font-size: 13px; font-weight: 500;
+  font-size: 13px;
+  font-weight: 500;
   border: 1px solid var(--border-strong);
   background: var(--bg-elevated);
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--transition);
 }
-.chip:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.chip:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .chip.active {
   background: var(--accent-purple);
   border-color: var(--accent-purple);
@@ -753,20 +809,36 @@ body {
 }
 
 .modal-footer {
-  display: flex; align-items: center; justify-content: space-between;
-  padding-top: 20px; border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
   margin-top: 4px;
 }
-.modal-count { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+
+.modal-count {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
 
 .btn-csv {
-  display: flex; align-items: center; gap: 7px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   padding: 9px 20px;
   background: var(--accent-purple);
   color: #fff;
-  border: none; border-radius: 9px;
-  font-size: 14px; font-weight: 600;
+  border: none;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
   transition: opacity var(--transition), transform 0.15s;
 }
-.btn-csv:hover { opacity: 0.88; transform: translateY(-1px); }
+
+.btn-csv:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
