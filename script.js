@@ -78,12 +78,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const dateEl = document.getElementById('live-date'); // <-- Ubah penargetan ke ID baru
   if (dateEl) {
     const updateDate = () => {
-      dateEl.textContent = new Date().toLocaleDateString('id-ID', {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('id-ID', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
       });
+      const timeStr = now.toLocaleTimeString('id-ID', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+      dateEl.innerHTML = `<div style="display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2;">
+        <span>${dateStr}</span>
+        <span style="font-size: 0.9em; font-weight: 600; margin-top: 2px;">${timeStr}</span>
+      </div>`;
     };
     updateDate();
-    setInterval(updateDate, 60000);
+    setInterval(updateDate, 1000);
   }
 
   // ── 3b. DOWNLOAD MODAL ───────────────────────────────────────────
