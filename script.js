@@ -524,16 +524,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ── PAGE 3 — CLUSTERING ───────────────────────────────────────
     const renderClusteringPage = (sektorName) => {
       const sectorData = allData.filter(d => d._sektor === sektorName);
-      const uniqueClusters = [...new Set(sectorData.map(d => parseInt(d.cluster)).filter(c => !isNaN(c)))].sort((a, b) => a - b);
-      const KATEGORI_SEKTOR = uniqueClusters.map(c => `Cluster ${c}`);
+      const uniqueTiers = [...new Set(sectorData.map(d => parseInt(d.tier)).filter(c => !isNaN(c)))].sort((a, b) => a - b);
+      const KATEGORI_SEKTOR = uniqueTiers.map(c => `Tier ${c}`);
 
       // Dynamic color palette
       const colorPalette = ['#FF6B9D', '#FFD93D', '#00D4AA', '#6C63FF', '#FF9F43', '#00CFE8', '#EA5455'];
-      const clusterColors = {};
-      const clusterNumMap = {};
+      const tierColors = {};
+      const tierNumMap = {};
       KATEGORI_SEKTOR.forEach((k, i) => {
-        clusterColors[k] = colorPalette[i % colorPalette.length];
-        clusterNumMap[k] = uniqueClusters[i];
+        tierColors[k] = colorPalette[i % colorPalette.length];
+        tierNumMap[k] = uniqueTiers[i];
       });
 
       const highMedia = sectorData.filter(d => SOSMED.reduce((a, c) => a + (isTrue(d, c) ? 1 : 0), 0) >= 3);
@@ -543,22 +543,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       const highRev = median(highMedia, 'reviewsCount');
       const zeroRev = median(zeroMedia, 'reviewsCount');
 
-      const distText = KATEGORI_SEKTOR.map(kat => `${kat} <strong>${sectorData.filter(d => parseInt(d.cluster) === clusterNumMap[kat]).length}</strong>`).join(', ');
+      const distText = KATEGORI_SEKTOR.map(kat => `${kat} <strong>${sectorData.filter(d => parseInt(d.tier) === tierNumMap[kat]).length}</strong>`).join(', ');
 
-      renderInsight('insight-clustering', `Interpretasi Hasil Clustering: ${sektorName}`, [
-        `Analisis segmentasi klaster divisualisasikan dengan mempertimbangkan beberapa variabel fundamental, meliputi: presensi nomor kontak (telepon), kepemilikan aset situs web, serta agregasi pemanfaatan platform media sosial dan OTA.`,
+      renderInsight('insight-clustering', `Interpretasi Hasil Tiering: ${sektorName}`, [
+        `Analisis segmentasi tier divisualisasikan dengan mempertimbangkan beberapa variabel fundamental, meliputi: presensi nomor kontak (telepon), kepemilikan aset situs web, serta agregasi pemanfaatan platform media sosial dan OTA.`,
         `Entitas usaha yang mengelola <strong>minimal 3 platform digital secara aktif</strong> menunjukkan korelasi positif terhadap kepuasan konsumen, dengan rata-rata rating mencapai <strong>${highAvg.toFixed(2)}</strong> dan nilai tengah ulasan sebanyak <strong>${Math.round(highRev).toLocaleString('id-ID')}</strong>.`,
         `Sebaliknya, entitas <strong>tanpa presensi media sosial</strong> cenderung mencatatkan performa di bawah standar optimal, dengan capaian rating <strong>${zeroAvg.toFixed(2)}</strong> dan nilai tengah ulasan terbatas pada <strong>${Math.round(zeroRev).toLocaleString('id-ID')}</strong>.`,
-        `Ringkasan distribusi populasi per klaster dijabarkan sebagai berikut: ${distText}.`
+        `Ringkasan distribusi populasi per tier dijabarkan sebagai berikut: ${distText}.`
       ]);
 
       if (document.getElementById('chart-rating')) {
         const avgScores = KATEGORI_SEKTOR.map(kat => {
-          const sub = sectorData.filter(d => parseInt(d.cluster) === clusterNumMap[kat]);
+          const sub = sectorData.filter(d => parseInt(d.tier) === tierNumMap[kat]);
           return sub.length ? parseFloat(avg(sub, 'totalScore').toFixed(2)) : 0;
         });
         const medRevs = KATEGORI_SEKTOR.map(kat => {
-          const sub = sectorData.filter(d => parseInt(d.cluster) === clusterNumMap[kat]);
+          const sub = sectorData.filter(d => parseInt(d.tier) === tierNumMap[kat]);
           return sub.length ? parseInt(median(sub, 'reviewsCount')) : 0;
         });
 
@@ -604,10 +604,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, cfg);
       }
 
-      // ── CHART: HASIL CLUSTER (Scatter Plot) ──────────────────────
+      // ── CHART: HASIL TIERING (Scatter Plot) ──────────────────────
       if (document.getElementById('chart-cluster')) {
-        const clusterTraces = KATEGORI_SEKTOR.map(kat => {
-          const subset = sectorData.filter(d => parseInt(d.cluster) === clusterNumMap[kat]);
+        const tierTraces = KATEGORI_SEKTOR.map(kat => {
+          const subset = sectorData.filter(d => parseInt(d.tier) === tierNumMap[kat]);
           return {
             x: subset.map(d => (parseFloat(d.totalScore) || 0) + (Math.random() * 0.06 - 0.03)),
             y: subset.map(d => Math.max(1, parseInt(d.reviewsCount) || 1)),
@@ -616,7 +616,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             text: subset.map(d => `${d.title || 'N/A'}<br>Sektor: ${d._sektor}<br>Rating: ${d.totalScore}<br>Reviews: ${d.reviewsCount}`),
             hoverinfo: 'text',
             marker: {
-              color: clusterColors[kat],
+              color: tierColors[kat],
               size: 8,
               opacity: 0.7,
               line: { width: 1, color: 'rgba(255,255,255,0.2)' }
@@ -624,7 +624,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           };
         });
 
-        Plotly.react('chart-cluster', clusterTraces, {
+        Plotly.react('chart-cluster', tierTraces, {
           ...baseLayout,
           xaxis: { ...baseLayout.xaxis, title: 'Total Score', type: 'linear', tickmode: 'linear', range: [-0.2, 5.5], dtick: 1 },
           yaxis: { ...baseLayout.yaxis, title: 'Jumlah Reviews', type: 'log' },
