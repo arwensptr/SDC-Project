@@ -784,8 +784,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         outsidetextfont: { color: textColor, size: 12 }
       }], {
         ...baseLayout, showlegend: true,
-        legend: { orientation: 'v', x: 1, y: 0.5, xanchor: 'left', yanchor: 'middle', font: { color: textColor } },
-        margin: { t: 60, b: 60, l: 60, r: 160 }
+        legend: { orientation: 'h', x: 0.5, y: -0.1, xanchor: 'center', yanchor: 'top', font: { color: textColor } },
+        margin: { t: 40, b: 80, l: 40, r: 40 }
       }, cfg);
     }
 
