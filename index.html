@@ -6,13 +6,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description"
     content="Dashboard analisis perilaku penggunaan media sosial dan platform pihak ketiga oleh pelaku usaha pariwisata di Bali." />
-  <title>Dashboard Analisis Bisnis Bali</title>
+  <title>Dashboard Analisis</title>
+  <link rel="icon" type="image/png"
+    href="https://upload.wikimedia.org/wikipedia/commons/4/49/Lambang_Kementerian_Pariwisata_Republik_Indonesia_%282024%29.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet">
 
   <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <!-- Mencegah flash (mixed mode) saat awal load -->
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem('dashboard-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    })();
+  </script>
 
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -364,7 +374,8 @@
 
     <template id="insight-template">
       <div class="insight-title">
-        <svg class="insight-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="insight-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="20" x2="18" y2="10"></line>
           <line x1="12" y1="20" x2="12" y2="4"></line>
           <line x1="6" y1="20" x2="6" y2="14"></line>

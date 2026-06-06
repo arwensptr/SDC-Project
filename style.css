@@ -74,7 +74,10 @@ body {
   line-height: 1.5;
   font-weight: 400;
   overflow-x: hidden;
-  transition: background-color var(--transition), color var(--transition);
+}
+
+.theme-transitioning * {
+  transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease, fill 0.4s ease, stroke 0.4s ease !important;
 }
 
 .header {

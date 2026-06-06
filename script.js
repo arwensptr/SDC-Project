@@ -17,10 +17,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       const targetPage = document.getElementById(`page-${target}`);
       if (targetPage) {
         targetPage.classList.add('active');
-        // Trigger resize untuk menghindari grafik gepeng
-        setTimeout(() => {
-          targetPage.querySelectorAll('.js-plotly-plot').forEach(c => Plotly.Plots.resize(c));
-        }, 50);
+        
+        // Aplikasikan tema terkini ke grafik sebelum di-resize
+        const currentTheme = html.getAttribute('data-theme') || 'dark';
+        const textColor = currentTheme === 'dark' ? '#f0f2f8' : '#111827';
+        const gridColor = currentTheme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+
+        // Paksa browser me-render ulang layout (reflow) agar Plotly bisa membaca dimensi sebelum di-paint
+        void targetPage.offsetHeight;
+
+        targetPage.querySelectorAll('.js-plotly-plot').forEach(c => {
+          Plotly.relayout(c, {
+            'font.color': textColor,
+            'xaxis.gridcolor': gridColor,
+            'yaxis.gridcolor': gridColor,
+            'yaxis2.color': textColor,
+            'legend.font.color': textColor
+          });
+          Plotly.restyle(c, {
+            'textfont.color': textColor,
+            'outsidetextfont.color': textColor
+          });
+          Plotly.Plots.resize(c);
+        });
       }
     });
   });
@@ -33,28 +52,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   const savedTheme = localStorage.getItem('dashboard-theme') || 'dark';
   html.setAttribute('data-theme', savedTheme);
 
-  themeToggle.addEventListener('click', () => {
+  themeToggle.addEventListener('click', (e) => {
+    e.preventDefault(); // Mencegah form submission jika ada
     const currentTheme = html.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
     html.setAttribute('data-theme', newTheme);
     localStorage.setItem('dashboard-theme', newTheme);
 
-    // Kita cukup panggil fungsi resize Plotly agar grafik menyesuaikan warna garis sumbu
+    // Tambahkan class khusus untuk memicu CSS transition yang smooth
+    document.body.classList.add('theme-transitioning');
+    setTimeout(() => document.body.classList.remove('theme-transitioning'), 400);
+
+    // Hanya update chart yang ada di page yang SEDANG AKTIF agar tidak gepeng
     setTimeout(() => {
-      document.querySelectorAll('.js-plotly-plot').forEach(c => {
-        // Update layout chart secara dinamis agar warna teks sumbu berubah
+      const activePage = document.querySelector('.page.active');
+      if (activePage) {
         const textColor = newTheme === 'dark' ? '#f0f2f8' : '#111827';
         const gridColor = newTheme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
 
-        Plotly.relayout(c, {
-          'font.color': textColor,
-          'xaxis.gridcolor': gridColor,
-          'yaxis.gridcolor': gridColor
+        activePage.querySelectorAll('.js-plotly-plot').forEach(c => {
+          Plotly.relayout(c, {
+            'font.color': textColor,
+            'xaxis.gridcolor': gridColor,
+            'yaxis.gridcolor': gridColor,
+            'yaxis2.color': textColor,
+            'legend.font.color': textColor
+          });
+          Plotly.restyle(c, {
+            'textfont.color': textColor,
+            'outsidetextfont.color': textColor
+          });
         });
-        Plotly.Plots.resize(c);
-      });
-    }, 100);
+      }
+    }, 50);
   });
 
   // ── 3. LIVE CLOCK ────────────────────────────────────────────────
@@ -801,34 +832,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const recommendations = [
         {
-          icon: '🌐', title: 'Percepat Pengembangan Website', priority: 'high', priorityLabel: 'Prioritas Tinggi',
-          desc: `<strong>${noWebPct}%</strong> usaha belum memiliki website. Website adalah aset digital permanen yang meningkatkan kredibilitas dan SEO. Fokuskan pada sektor <strong>Restoran</strong> dan <strong>Hiburan Malam</strong> yang paling tertinggal.`,
-          metric: `Target: Naikkan penetrasi website dari ${websitePct}% ke minimal 40% dalam 12 bulan`
+          icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>', 
+          title: 'Sinergi Promosi Media Sosial & Kualitas Layanan', priority: 'high', priorityLabel: 'Fokus Pelaku Usaha',
+          desc: `Promosi digital efektif meningkatkan jumlah ulasan dan volume pengunjung. Namun, <strong>rating murni dipengaruhi oleh kualitas layanan</strong> di lapangan. Oleh karena itu, manfaatkan media sosial sebagai mesin pendatang pelanggan (akuisisi), namun pastikan terus berbenah meningkatkan layanan demi menjaga kepuasan pengunjung (retensi).`,
+          metric: `Aktivitas medsos berbanding lurus dengan peningkatan ulasan (reviews), namun independen terhadap skor penilaian (rating).`
         },
         {
-          icon: '📱', title: 'Dorong Adopsi TikTok & YouTube', priority: 'high', priorityLabel: 'Prioritas Tinggi',
-          desc: `Penetrasi TikTok hanya <strong>${tikPct}%</strong> dan YouTube <strong>${ytPct}%</strong>. Platform video pendek sangat efektif untuk sektor pariwisata. Program pelatihan konten kreator lokal bisa mempercepat adopsi.`,
-          metric: `Potensi jangkauan: TikTok memiliki 125M+ pengguna aktif di Indonesia`
+          icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>', 
+          title: 'Rekomendasi Jangka Pendek (Penjangkauan & Pemetaan)', priority: 'high', priorityLabel: 'Prioritas Pemerintah',
+          desc: `Manfaatkan model clustering untuk memetakan usaha di segmen literasi digital terendah. Lakukan pendekatan proaktif (jemput bola) untuk memberikan bantuan teknis dasar (seperti pembuatan titik lokasi peta & akun bisnis) sekaligus melakukan survei mendalam guna mengidentifikasi hambatan utama promosi digital mereka.`,
+          metric: `Fokus: Pendataan spesifik dan pendampingan langsung pada klaster terbawah.`
         },
         {
-          icon: '🍽️', title: 'Perluas Integrasi Delivery', priority: 'high', priorityLabel: 'Prioritas Tinggi',
-          desc: `Hanya <strong>${sfPct}%</strong> restoran di ShopeeFood, <strong>${gfPct}%</strong> di GrabFood, dan <strong>${goFPct}%</strong> di GoFood. Kemitraan B2B dengan platform delivery bisa memperluas jangkauan pasar.`,
-          metric: `Gap penetrasi: ${100 - Math.max(sfPct, gfPct, goFPct)}% restoran belum terkoneksi delivery terbesar`
-        },
-        {
-          icon: '📈', title: 'Program Pendampingan Digital untuk Segmen Rendah', priority: 'medium', priorityLabel: 'Prioritas Sedang',
-          desc: `<strong>${pctRendah}%</strong> usaha masih di segmen <strong>Rendah</strong> dengan sedikit platform aktif. Pelatihan digital literacy bisa meningkatkan visibilitas dan mendorong mereka naik ke segmen yang lebih tinggi.`,
-          metric: `Korelasi: Usaha ≥3 platform → rating ${highAvg.toFixed(2)} vs tanpa medsos → rating ${zeroAvg.toFixed(2)}`
-        },
-        {
-          icon: '🗺️', title: 'Pemerataan Digital di Luar Badung-Denpasar', priority: 'medium', priorityLabel: 'Prioritas Sedang',
-          desc: `<strong>${top2Pct}%</strong> usaha terkonsentrasi di Badung & Denpasar. Wilayah seperti <strong>${lowestDigKab.kab}</strong> (penetrasi IG hanya <strong>${lowestDigKab.igPct}%</strong>) memerlukan stimulus digitalisasi khusus.`,
-          metric: `Disparitas: ${topKab[1]} usaha di ${topKab[0]} vs ${bottomKab[1]} di ${bottomKab[0]}`
-        },
-        {
-          icon: '🏨', title: 'Replikasi Best Practice Sektor Penginapan', priority: 'low', priorityLabel: 'Langkah Lanjutan',
-          desc: `Sektor Penginapan unggul di semua metrik digital (IG <strong>${penIg}%</strong>, FB <strong>${penFb}%</strong>). Strategi dan pola adopsi mereka bisa dijadikan blueprint untuk sektor Restoran (IG <strong>${restoIgPct}%</strong>) dan Hiburan Malam (IG <strong>${hibIgPct}%</strong>).`,
-          metric: `Gap terbesar: Penginapan vs Hiburan Malam = ${penIg - hibIgPct} poin persentase di Instagram`
+          icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>', 
+          title: 'Rekomendasi Jangka Panjang (Edukasi & Keberlanjutan)', priority: 'medium', priorityLabel: 'Program Lanjutan',
+          desc: `Kemenparekraf perlu menyelenggarakan program pembinaan berkelanjutan agar pelaku usaha menguasai strategi promosi secara mandiri. Program harus diiringi dengan pendampingan berkala terhadap badan usaha prioritas, serta pembukaan pusat layanan terpadu (<em>helpdesk digital</em>) berbasis tautan daring untuk permohonan pendampingan operasional.`,
+          metric: `Tujuan: Adopsi digital maksimal, engagement tinggi, dan kemandirian pelaku usaha.`
         }
       ];
 
@@ -843,10 +862,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       `).join('');
     }
 
-    renderInsight('insight-rekomendasi', 'Ringkasan Rekomendasi Strategis', [
-      `Pengembangan strategis difokuskan pada tiga pilar fundamental: <strong>Situs Web</strong> (sebagai instrumen eksistensi digital mandiri), <strong>Platform Berbasis Video</strong> seperti TikTok dan YouTube (untuk perluasan visibilitas pasar), serta optimalisasi <strong>OTA dan Layanan Pesan-Antar</strong> (sebagai kanal konversi komersial langsung).`,
-      `Implementasi strategi perlu disesuaikan dengan segmentasi sektoral: mengadaptasi tata kelola sektor <strong>Penginapan</strong> sebagai tolok ukur implementasi terbaik, mengoptimalkan partisipasi pada ekosistem OTA untuk sektor <strong>Restoran</strong>, serta memanfaatkan kapabilitas media sosial untuk membangun preferensi pada sektor <strong>Hiburan Malam</strong>.`,
-      `Distribusi kapabilitas digital yang inklusif antardaerah seyogianya diposisikan sebagai agenda prioritas pemangku kebijakan, guna mendesentralisasikan pertumbuhan pariwisata dari koridor sentral Kuta-Seminyak-Denpasar menuju pengembangan ekosistem yang lebih merata secara spasial.`
+    renderInsight('insight-rekomendasi', 'Tindak Lanjut & Intervensi Pemerintah', [
+      `Temuan ini dapat menjadi landasan bagi Kementerian Pariwisata dan Ekonomi Kreatif (Kemenparekraf) untuk mendorong roda ekonomi pariwisata yang lebih inklusif.`,
+      `Pemerintah dapat memanfaatkan model clustering untuk pendataan dan pemetaan spesifik terhadap kelompok usaha yang masih memiliki kesadaran digital rendah (klaster terbawah).`,
+      `Intervensi dapat difokuskan pada bantuan pembuatan aset digital dasar (seperti titik lokasi peta dan akun bisnis), sosialisasi presensi online, hingga pembinaan teknis merancang promosi efektif.`
     ]);
 
   } catch (err) {
