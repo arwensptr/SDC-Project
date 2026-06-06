@@ -53,18 +53,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   html.setAttribute('data-theme', savedTheme);
 
   themeToggle.addEventListener('click', (e) => {
-    e.preventDefault(); // Mencegah form submission jika ada
+    e.preventDefault();
     const currentTheme = html.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
     html.setAttribute('data-theme', newTheme);
     localStorage.setItem('dashboard-theme', newTheme);
 
-    // Tambahkan class khusus untuk memicu CSS transition yang smooth
-    document.body.classList.add('theme-transitioning');
-    setTimeout(() => document.body.classList.remove('theme-transitioning'), 400);
-
-    // Hanya update chart yang ada di page yang SEDANG AKTIF agar tidak gepeng
+    // Tunggu transisi CSS selesai (300ms) sebelum meng-update grafik yang berat.
+    // Ini mencegah Javascript memblokir animasi browser sehingga transisi tidak "patah-patah".
     setTimeout(() => {
       const activePage = document.querySelector('.page.active');
       if (activePage) {
