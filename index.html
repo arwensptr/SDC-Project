@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="Dashboard analisis perilaku penggunaan media sosial dan platform pihak ketiga oleh pelaku usaha pariwisata di Bali." />
+  <title>Dashboard Analisis Bisnis Bali</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <header class="header">
+    <div class="header-brand">
+      <div class="justify">
+        <img width="45" height="45"
+          src="https://upload.wikimedia.org/wikipedia/commons/4/49/Lambang_Kementerian_Pariwisata_Republik_Indonesia_%282024%29.svg"
+          alt="Logo Kementerian Pariwisata">
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-page="ringkasan">Ringkasan</button>
+      <button class="nav-item" data-page="analisis">Analisis &amp; Segmentasi</button>
+      <button class="nav-item" data-page="clustering">Clustering &amp; Korelasi</button>
+      <button class="nav-item" data-page="spasial">Spasial</button>
+      <button class="nav-item" data-page="rekomendasi">Rekomendasi</button>
+    </nav>
+
+    <div class="header-actions">
+      <span class="header-date" id="live-date">Memuat tanggal...</span>
+
+      <!-- Tombol Unduh Data -->
+      <button class="btn-download" id="btnOpenDownload" title="Unduh Data">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        Unduh Data
+      </button>
+
+      <button class="theme-toggle" id="themeToggle" title="Toggle tema">
+        <span class="theme-icon sun">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+        </span>
+        <span class="theme-icon moon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══ DOWNLOAD MODAL ════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="downloadModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">⬇️ Unduh Data</h3>
+        <button class="modal-close" id="btnCloseDownload">&times;</button>
+      </div>
+
+      <p class="modal-desc">Pilih filter untuk mengunduh subset data sebagai file <strong>.csv</strong>.</p>
+
+      <div class="modal-section">
+        <label class="modal-label">Berdasarkan Cluster / Segmen</label>
+        <div class="modal-chips" id="clusterChips">
+          <button class="chip active" data-type="cluster" data-value="all">Semua Cluster</button>
+          <button class="chip" data-type="cluster" data-value="Rendah">Rendah</button>
+          <button class="chip" data-type="cluster" data-value="Sedang">Sedang</button>
+          <button class="chip" data-type="cluster" data-value="Tinggi">Tinggi</button>
+          <button class="chip" data-type="cluster" data-value="Tinggi Sekali">Tinggi Sekali</button>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <label class="modal-label">Berdasarkan Kategori / Sektor</label>
+        <div class="modal-chips" id="kategoriChips">
+          <button class="chip active" data-type="kategori" data-value="all">Semua Sektor</button>
+          <button class="chip" data-type="kategori" data-value="Penginapan">Penginapan</button>
+          <button class="chip" data-type="kategori" data-value="Restoran">Restoran</button>
+          <button class="chip" data-type="kategori" data-value="Hiburan Malam">Hiburan Malam</button>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <span class="modal-count" id="downloadCount">Memuat...</span>
+        <button class="btn-csv" id="btnDownloadCSV">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Unduh CSV
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <main class="main">
+
+    <!-- ═══ PAGE 1: RINGKASAN ═══════════════════════════════════════ -->
+    <section class="page active" id="page-ringkasan">
+      <div class="page-header">
+        <div>
+          <h1 class="brand-title">Data Usage Behaviour by Social Media and Third Party Usage</h1>
+          <h1 class="page-title">Ringkasan Eksekutif</h1>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card accent-blue">
+          <div class="kpi-top"><span class="kpi-label">Total Usaha</span></div>
+          <div class="kpi-value" id="kpi-total">0</div>
+          <div class="kpi-change positive">Seluruh Sektor</div>
+        </div>
+        <div class="kpi-card accent-green">
+          <div class="kpi-top"><span class="kpi-label">Rata-rata Rating</span></div>
+          <div class="kpi-value" id="kpi-rating">0.0</div>
+          <div class="kpi-change positive">Skala 5.0</div>
+        </div>
+        <div class="kpi-card accent-orange">
+          <div class="kpi-top"><span class="kpi-label">Median Total Reviews</span></div>
+          <div class="kpi-value" id="kpi-reviews">0</div>
+          <div class="kpi-change positive">Distribusi Tengah</div>
+        </div>
+        <div class="kpi-card accent-purple">
+          <div class="kpi-top"><span class="kpi-label">Website Aktif</span></div>
+          <div class="kpi-value" id="kpi-website">0</div>
+          <div class="kpi-change positive">Digital Presence</div>
+        </div>
+      </div>
+
+      <div class="content-grid" style="grid-template-columns: 2fr 1fr;">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">Penggunaan Media Sosial Keseluruhan</h3>
+              <p class="chart-sub">Volume adopsi per platform di seluruh sektor</p>
+            </div>
+          </div>
+          <div id="chart-medsos" class="chart-container chart-compact"></div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">Infrastruktur Digital</h3>
+              <p class="chart-sub">Kepemilikan Website</p>
+            </div>
+          </div>
+          <div id="chart-website" class="chart-container chart-compact"></div>
+        </div>
+      </div>
+
+      <div class="content-grid" style="grid-template-columns: 1fr;">
+        <div class="chart-card wide">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">Heatmap Adopsi Kanal Digital</h3>
+              <p class="chart-sub">% pelaku usaha per sektor yang menggunakan masing-masing platform</p>
+            </div>
+            <span class="chart-badge">% per sektor</span>
+          </div>
+          <div id="heatmap-adopsi" class="heatmap-wrap"></div>
+        </div>
+      </div>
+
+      <div class="insight-card" id="insight-ringkasan"></div>
+    </section>
+
+    <!-- ═══ PAGE 2: ANALISIS & SEGMENTASI (gabungan) ════════════════ -->
+    <section class="page" id="page-analisis">
+      <div class="page-header"
+        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div>
+          <h2 class="page-title">Analisis Kategori & Segmentasi Usaha</h2>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">Distribusi adopsi platform digital per
+            tingkat performa</p>
+        </div>
+      </div>
+
+      <!-- Baris 1: Distribusi Kelompok + Penetrasi Medsos -->
+      <div class="content-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">Distribusi Segmentasi Usaha</h3>
+              <p class="chart-sub">Proporsi berdasarkan tingkat adopsi digital (Rendah → Sedang → Tinggi → Tinggi
+                Sekali)</p>
+            </div>
+          </div>
+          <div id="chart-distribusi" class="chart-container chart-compact"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3 class="chart-title">Penetrasi Media Sosial</h3>
+            <p class="chart-sub">Total adopsi platform (Instagram, TikTok, Facebook, YouTube)</p>
+          </div>
+          <div id="chart-kategori-sosmed" class="chart-container chart-compact"></div>
+        </div>
+      </div>
+
+      <!-- Baris 2: OTA + Insight -->
+      <div class="content-grid" id="grid-analisis-row2" style="grid-template-columns: 1fr 1fr; margin-top: 20px;">
+        <div class="chart-card" id="card-ota">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">Platform Delivery</h3>
+              <p class="chart-sub">ShopeeFood, GrabFood, GoFood — khusus Restoran</p>
+            </div>
+          </div>
+          <div id="chart-ota" class="chart-container chart-compact"></div>
+        </div>
+        <div class="insight-card" id="insight-analisis" style="height: 100%;"></div>
+      </div>
+    </section>
+
+    <!-- ═══ PAGE 3: CLUSTERING ══════════════════════════════════════ -->
+    <section class="page" id="page-clustering">
+      <div class="page-header"
+        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+        <div>
+          <h2 class="page-title">Analisis Clustering dan Korelasi Performa</h2>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">Pola klaster K-Means untuk setiap sektor
+            usaha</p>
+        </div>
+        <div class="segment-control" id="cluster-sektor-filter"
+          style="display: flex; background: var(--card-bg); border-radius: 10px; padding: 4px; border: 1px solid rgba(255,255,255,0.1);">
+          <button class="segment-btn active" data-value="Penginapan"
+            style="background: #6C63FF; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-family: inherit;">🏨
+            Penginapan</button>
+          <button class="segment-btn" data-value="Restoran"
+            style="background: transparent; color: var(--text-muted); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-family: inherit;">🍽️
+            Restoran</button>
+          <button class="segment-btn" data-value="Hiburan Malam"
+            style="background: transparent; color: var(--text-muted); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-family: inherit;">🍸
+            Hiburan Malam</button>
+        </div>
+      </div>
+
+      <div class="content-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">Rata-rata Rating & Median Total Reviews per Cluster</h3>
+              <p class="chart-sub">Perbandingan rata-rata score dan Median Total Reviews di tiap label cluster K-Means
+              </p>
+            </div>
+          </div>
+          <div id="chart-rating" class="chart-container chart-compact"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">Bubble Chart: Score vs Reviews per Cluster</h3>
+              <p class="chart-sub">Sebaran total score vs jumlah review — ukuran & warna titik = jumlah platform aktif
+              </p>
+            </div>
+          </div>
+          <div id="chart-bubble" class="chart-container chart-compact"></div>
+        </div>
+      </div>
+
+      <!-- Baris 2: Hasil Cluster + Heatmap Korelasi -->
+      <div class="content-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">Scatter Plot Hasil Cluster</h3>
+              <p class="chart-sub">Distribusi tiap titik usaha berdasarkan rating vs reviews, diwarnai per label cluster
+              </p>
+            </div>
+            <span class="chart-badge">Scatter Plot</span>
+          </div>
+          <div id="chart-cluster" class="chart-container chart-compact"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">Heatmap Korelasi Antar Fitur</h3>
+              <p class="chart-sub">Korelasi Pearson antara score, reviews, sosmed, website, dan telepon</p>
+            </div>
+            <span class="chart-badge">Pearson r</span>
+          </div>
+          <div id="chart-corr-heatmap" class="chart-container chart-compact"></div>
+        </div>
+      </div>
+
+      <!-- Baris 3: Insight -->
+      <div class="content-grid" style="grid-template-columns: 1fr;">
+        <div class="insight-card wide" id="insight-clustering"></div>
+      </div>
+    </section>
+
+    <!-- ═══ PAGE 4: SPASIAL ════════════════════════════════════════ -->
+    <section class="page" id="page-spasial">
+      <div class="page-header">
+        <div>
+          <h2 class="page-title">Analisis Spasial & Geografis</h2>
+        </div>
+      </div>
+
+      <div class="content-grid" style="grid-template-columns: 1fr;">
+        <div class="chart-card wide">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">Heatmap Persebaran Usaha</h3>
+              <p class="chart-sub">Intensitas kepadatan pariwisata by Kabupaten/Kota</p>
+            </div>
+          </div>
+          <div id="chart-heatmap" class="chart-container chart-compact"></div>
+        </div>
+      </div>
+
+      <div class="content-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title">Top Kabupaten berdasarkan Jumlah Usaha</h3>
+              <p class="chart-sub">Ranking wilayah dengan konsentrasi bisnis pariwisata tertinggi</p>
+            </div>
+          </div>
+          <div id="chart-top-kabupaten" class="chart-container chart-compact"></div>
+        </div>
+        <div class="insight-card" id="insight-spasial"></div>
+      </div>
+    </section>
+
+    <!-- ═══ PAGE 5: REKOMENDASI ════════════════════════════════════ -->
+    <section class="page" id="page-rekomendasi">
+      <div class="page-header">
+        <div>
+          <h2 class="page-title">Rekomendasi Strategis</h2>
+        </div>
+      </div>
+
+      <div class="reco-grid" id="reco-container">
+        <!-- Akan di-render oleh JS -->
+      </div>
+
+      <div class="insight-card" id="insight-rekomendasi"></div>
+    </section>
+
+    <template id="insight-template">
+      <div class="insight-title">
+        <svg class="insight-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        <span class="insight-title-text"></span>
+      </div>
+      <ul class="insight-list"></ul>
+    </template>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
