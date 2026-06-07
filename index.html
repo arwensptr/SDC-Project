@@ -41,7 +41,7 @@
     <nav class="nav">
       <button class="nav-item active" data-page="ringkasan">Summary</button>
       <button class="nav-item" data-page="analisis">Analysis &amp; Segmentation</button>
-      <button class="nav-item" data-page="clustering">Cluster Rank &amp; Correlation</button>
+      <button class="nav-item" data-page="clustering">Tier Rank &amp; Correlation</button>
       <button class="nav-item" data-page="spasial">Spatial</button>
       <button class="nav-item" data-page="rekomendasi">Recommendation</button>
     </nav>
@@ -93,23 +93,19 @@
       <p class="modal-desc">Pilih filter untuk mengunduh subset data sebagai file <strong>.csv</strong>.</p>
 
       <div class="modal-section">
-        <label class="modal-label">Berdasarkan Cluster / Segmen</label>
-        <div class="modal-chips" id="clusterChips">
-          <button class="chip active" data-type="cluster" data-value="all">Semua Cluster</button>
-          <button class="chip" data-type="cluster" data-value="Rendah">Rendah</button>
-          <button class="chip" data-type="cluster" data-value="Sedang">Sedang</button>
-          <button class="chip" data-type="cluster" data-value="Tinggi">Tinggi</button>
-          <button class="chip" data-type="cluster" data-value="Tinggi Sekali">Tinggi Sekali</button>
-        </div>
-      </div>
-
-      <div class="modal-section">
         <label class="modal-label">Berdasarkan Kategori / Sektor</label>
         <div class="modal-chips" id="kategoriChips">
           <button class="chip active" data-type="kategori" data-value="all">Semua Sektor</button>
           <button class="chip" data-type="kategori" data-value="Penginapan">Penginapan</button>
           <button class="chip" data-type="kategori" data-value="Restoran">Restoran</button>
           <button class="chip" data-type="kategori" data-value="Hiburan Malam">Hiburan Malam</button>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <label class="modal-label">Berdasarkan Tier</label>
+        <div class="modal-chips" id="TierChips">
+          <button class="chip active" data-type="Tier" data-value="all">Semua Tier</button>
         </div>
       </div>
 
@@ -142,19 +138,19 @@
         <div class="kpi-card accent-blue">
           <div class="kpi-top"><span class="kpi-label">Total Usaha</span></div>
           <div class="kpi-value" id="kpi-total">0</div>
-          <div class="kpi-change positive">Seluruh Sektor</div>
+          <div class="kpi-change positive">dari Seluruh Sektor</div>
         </div>
-        <div class="kpi-card accent-green">
+        <div class="kpi-card accent-blue">
           <div class="kpi-top"><span class="kpi-label">Rata-rata Rating</span></div>
           <div class="kpi-value" id="kpi-rating">0.0</div>
-          <div class="kpi-change positive">Skala 5.0</div>
+          <div class="kpi-change positive">berdasarkan Skala 5.0</div>
         </div>
-        <div class="kpi-card accent-orange">
+        <div class="kpi-card accent-blue">
           <div class="kpi-top"><span class="kpi-label">Median Total Reviews</span></div>
           <div class="kpi-value" id="kpi-reviews">0</div>
-          <div class="kpi-change positive">Distribusi Tengah</div>
+          <div class="kpi-change positive">Nilai Tengah dari Total Reviews</div>
         </div>
-        <div class="kpi-card accent-purple">
+        <div class="kpi-card accent-blue">
           <div class="kpi-top"><span class="kpi-label">Website Aktif</span></div>
           <div class="kpi-value" id="kpi-website">0</div>
           <div class="kpi-change positive">Digital Presence</div>
@@ -166,7 +162,7 @@
           <div class="chart-header">
             <div>
               <h3 class="chart-title">Penggunaan Media Sosial Keseluruhan</h3>
-              <p class="chart-sub">Volume adopsi per platform di seluruh sektor</p>
+              <p class="chart-sub">Volume Kepemilikan Platform di Seluruh Sektor</p>
             </div>
           </div>
           <div id="chart-medsos" class="chart-container chart-compact"></div>
@@ -188,7 +184,7 @@
           <div class="chart-header">
             <div>
               <h3 class="chart-title">Heatmap Adopsi Kanal Digital</h3>
-              <p class="chart-sub">% pelaku usaha per sektor yang menggunakan masing-masing platform</p>
+              <p class="chart-sub">Persentase dari Pelaku Usaha per Sektor dalam Kepemilikan Platform</p>
             </div>
             <span class="chart-badge">% per sektor</span>
           </div>
@@ -205,8 +201,8 @@
         style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
           <h2 class="page-title">Analisis Kategori & Segmentasi Usaha</h2>
-          <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">Distribusi adopsi platform digital per
-            tingkat performa</p>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">Distribusi Adopsi Platform Digital per
+            Tingkat Performa</p>
         </div>
       </div>
 
@@ -216,8 +212,7 @@
           <div class="chart-header">
             <div>
               <h3 class="chart-title">Distribusi Segmentasi Usaha</h3>
-              <p class="chart-sub">Proporsi berdasarkan tingkat adopsi digital (Rendah → Sedang → Tinggi → Tinggi
-                Sekali)</p>
+              <p class="chart-sub">Proporsi Berdasarkan Tingkat Adopsi Digital</p>
             </div>
           </div>
           <div id="chart-distribusi" class="chart-container chart-compact"></div>
@@ -225,7 +220,7 @@
         <div class="chart-card">
           <div class="chart-header">
             <h3 class="chart-title">Penetrasi Media Sosial</h3>
-            <p class="chart-sub">Total adopsi platform (Instagram, TikTok, Facebook, YouTube)</p>
+            <p class="chart-sub">Total Adopsi Platform (Instagram, TikTok, Facebook, YouTube)</p>
           </div>
           <div id="chart-kategori-sosmed" class="chart-container chart-compact"></div>
         </div>
@@ -237,8 +232,9 @@
           <div class="chart-header">
             <div>
               <h3 class="chart-title">Platform Delivery</h3>
-              <p class="chart-sub">ShopeeFood, GrabFood, GoFood — khusus Restoran</p>
+              <p class="chart-sub">ShopeeFood, GrabFood, GoFood</p>
             </div>
+            <span class="chart-badge">Khusus Restoran</span>
           </div>
           <div id="chart-ota" class="chart-container chart-compact"></div>
         </div>
@@ -251,14 +247,14 @@
       <div class="page-header"
         style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
-          <h2 class="page-title">Analisis Rank Cluster</h2>
-          <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">Pola klaster K-Means untuk setiap sektor
-            usaha berdasarkan tingkat adopsi digital</p>
+          <h2 class="page-title">Analisis Tingkat Tier</h2>
+          <p style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">Pola Tiering K-Means untuk Setiap Sektor
+            Usaha Berdasarkan Tingkat Adopsi Digital</p>
         </div>
-        <div class="segment-control" id="cluster-sektor-filter"
+        <div class="segment-control" id="tier-sektor-filter"
           style="display: flex; background: var(--card-bg); border-radius: 10px; padding: 4px; border: 1px solid rgba(255,255,255,0.1);">
           <button class="segment-btn active" data-value="Penginapan"
-            style="background: #6C63FF; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-family: inherit;">🏨
+            style="background: var(--accent-blue); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-family: inherit;">🏨
             Penginapan</button>
           <button class="segment-btn" data-value="Restoran"
             style="background: transparent; color: var(--text-muted); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.3s; font-family: inherit;">🍽️
@@ -274,7 +270,7 @@
           <div class="chart-header">
             <div>
               <h3 class="chart-title">Rata-rata Rating & Median Total Reviews per Tier</h3>
-              <p class="chart-sub">Perbandingan rata-rata score dan Median Total Reviews di tiap tier cluster K-Means
+              <p class="chart-sub">Perbandingan rata-rata score dan Median Total Reviews di tiap tier Tier K-Means
               </p>
             </div>
           </div>
@@ -292,7 +288,7 @@
         </div>
       </div>
 
-      <!-- Baris 2: Hasil Cluster + Heatmap Korelasi -->
+      <!-- Baris 2: Hasil Tier + Heatmap Korelasi -->
       <div class="content-grid" style="grid-template-columns: 1fr 1fr;">
         <div class="chart-card">
           <div class="chart-header">

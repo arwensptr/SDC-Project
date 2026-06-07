@@ -4,6 +4,9 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
 
+  // Fungsi yang akan diisi setelah data siap — digunakan oleh theme toggle
+  let _reRenderHeatmapTable = null;
+
   // ── 1. NAVIGASI ──────────────────────────────────────────────────
   const navItems = document.querySelectorAll('.nav-item');
   const pages = document.querySelectorAll('.page');
@@ -55,22 +58,83 @@ document.addEventListener('DOMContentLoaded', async () => {
     // agar saat pindah page tidak ada grafik yang masih pakai warna lama
     requestAnimationFrame(() => {
       document.querySelectorAll('.js-plotly-plot').forEach(c => {
-        Plotly.relayout(c, {
+        const currentLayout = c.layout || {};
+
+        // Build relayout update — covers font, axes, legend, colorbar, annotations
+        const relayoutUpdate = {
           'font.color': textColor,
           'paper_bgcolor': 'rgba(0,0,0,0)',
           'plot_bgcolor': 'rgba(0,0,0,0)',
           'xaxis.gridcolor': gridColor,
           'xaxis.zerolinecolor': gridColor,
+          'xaxis.title.font.color': textColor,
+          'xaxis.tickfont.color': textColor,
           'yaxis.gridcolor': gridColor,
           'yaxis.zerolinecolor': gridColor,
-          'yaxis2.color': textColor,
+          'yaxis.title.font.color': textColor,
+          'yaxis.tickfont.color': textColor,
           'legend.font.color': textColor
-        });
-        Plotly.restyle(c, {
-          'textfont.color': textColor,
-          'outsidetextfont.color': textColor
-        });
+        };
+
+        // Update yaxis2 jika ada (chart rating dual-axis)
+        if (currentLayout.yaxis2) {
+          relayoutUpdate['yaxis2.color'] = textColor;
+          relayoutUpdate['yaxis2.title.font.color'] = textColor;
+          relayoutUpdate['yaxis2.tickfont.color'] = textColor;
+        }
+
+        // Update semua annotations (heatmap korelasi) — ganti warna teks yg bukan putih
+        if (currentLayout.annotations && currentLayout.annotations.length) {
+          const updatedAnnotations = currentLayout.annotations.map(ann => {
+            const newAnn = { ...ann };
+            if (newAnn.font) {
+              // Annotation pada korelasi: putih jika |r| > 0.45, else textColor
+              const isWhite = newAnn.font.color === '#ffffff';
+              if (!isWhite) {
+                newAnn.font = { ...newAnn.font, color: textColor };
+              }
+            }
+            return newAnn;
+          });
+          relayoutUpdate['annotations'] = updatedAnnotations;
+        }
+
+        Plotly.relayout(c, relayoutUpdate);
+
+        // Restyle semua traces — text labels, outside text, colorbar
+        const numTraces = (c.data || []).length;
+        for (let i = 0; i < numTraces; i++) {
+          const trace = c.data[i];
+          const restyleUpdate = {};
+
+          // Update text label warna (bar chart text di luar)
+          if (trace.textfont) {
+            restyleUpdate['textfont.color'] = textColor;
+          }
+          if (trace.outsidetextfont) {
+            restyleUpdate['outsidetextfont.color'] = textColor;
+          }
+
+          // Update colorbar font jika ada (bubble chart, heatmap korelasi, choropleth)
+          if (trace.marker && trace.marker.colorbar) {
+            restyleUpdate['marker.colorbar.tickfont.color'] = textColor;
+            restyleUpdate['marker.colorbar.title.font.color'] = textColor;
+          }
+          if (trace.colorbar) {
+            restyleUpdate['colorbar.tickfont.color'] = textColor;
+            restyleUpdate['colorbar.title.font.color'] = textColor;
+          }
+
+          if (Object.keys(restyleUpdate).length > 0) {
+            Plotly.restyle(c, restyleUpdate, [i]);
+          }
+        }
       });
+
+      // Re-render HTML heatmap table agar warna teks mengikuti tema baru
+      if (typeof _reRenderHeatmapTable === 'function') {
+        _reRenderHeatmapTable(textColor);
+      }
     });
   });
 
@@ -105,9 +169,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   let _dlCluster = 'all';
   let _dlKategori = 'all';
 
+  const populateTiers = (sektor) => {
+    const tierContainer = document.getElementById('TierChips');
+    if (!tierContainer) return;
+    tierContainer.innerHTML = '<button class="chip active" data-type="Tier" data-value="all">Semua Tier</button>';
+    if (sektor === 'all') return;
+
+    const sectorData = _downloadData.filter(d => (d._sektor || '').toLowerCase() === sektor.toLowerCase());
+    const uniqueTiers = [...new Set(sectorData.map(d => parseInt(d.tier)).filter(c => !isNaN(c)))].sort((a, b) => a - b);
+    
+    uniqueTiers.forEach(t => {
+      const btn = document.createElement('button');
+      btn.className = 'chip';
+      btn.dataset.type = 'Tier';
+      btn.dataset.value = t;
+      btn.textContent = `Tier ${t}`;
+      tierContainer.appendChild(btn);
+    });
+  };
+
   const updateDownloadCount = () => {
     const filtered = _downloadData.filter(d => {
-      const clOk = _dlCluster === 'all' || (d.kategori || '').toLowerCase() === _dlCluster.toLowerCase();
+      const clOk = _dlCluster === 'all' || String(d.tier) === String(_dlCluster);
       const katOk = _dlKategori === 'all' || (d._sektor || '').toLowerCase() === _dlKategori.toLowerCase();
       return clOk && katOk;
     });
@@ -120,10 +203,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     group.addEventListener('click', e => {
       const chip = e.target.closest('.chip');
       if (!chip) return;
-      group.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      
+      const parent = chip.closest('.modal-chips');
+      parent.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
-      if (chip.dataset.type === 'cluster') _dlCluster = chip.dataset.value;
-      if (chip.dataset.type === 'kategori') _dlKategori = chip.dataset.value;
+      
+      if (chip.dataset.type === 'Tier') {
+        _dlCluster = chip.dataset.value;
+      }
+      if (chip.dataset.type === 'kategori') {
+        _dlKategori = chip.dataset.value;
+        _dlCluster = 'all'; // Reset tier when sector changes
+        populateTiers(_dlKategori);
+      }
       updateDownloadCount();
     });
   });
@@ -144,7 +236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const clusterLabel = _dlCluster === 'all' ? 'semua-cluster' : _dlCluster.toLowerCase().replace(/ /g, '-');
+      const clusterLabel = _dlCluster === 'all' ? 'semua-tier' : _dlCluster.toLowerCase().replace(/ /g, '-');
       const kategoriLabel = _dlKategori === 'all' ? 'semua-kategori' : _dlKategori.toLowerCase().replace(/ /g, '-');
       a.href = url; a.download = `data-bisnis-bali_${clusterLabel}_${kategoriLabel}.csv`;
       a.click(); URL.revokeObjectURL(url);
@@ -179,12 +271,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
     const SEGMEN_LABEL = ['Rendah', 'Sedang', 'Tinggi', 'Tinggi Sekali'];
-    // Palette Plasma (lebih cerah dan nyaman dibaca)
-    const PLASMA = ['#46039f', '#7201a8', '#9c179e', '#bd3786', '#d8576b', '#ed7953', '#fb9f3a', '#fdca26'];
-    const PLASMA_6 = ['#46039f', '#9c179e', '#d8576b', '#ed7953', '#fb9f3a', '#fdca26'];
-    const PLASMA_4 = ['#46039f', '#bd3786', '#ed7953', '#fdca26'];
-    const PLASMA_3 = ['#46039f', '#d8576b', '#fb9f3a'];
-    const SEGMEN_COLOR = PLASMA_4;
+    // Palette Biru (Dari terang ke gelap)
+    const BLUE_PALETTE = ['#E0F2FE', '#BAE6FD', '#7DD3FC', '#38BDF8', '#0EA5E9', '#0284C7', '#0369A1', '#075985'];
+    const BLUE_6 = ['#E0F2FE', '#7DD3FC', '#0EA5E9', '#0284C7', '#0369A1', '#075985'];
+    const BLUE_4 = ['#E0F2FE', '#38BDF8', '#0284C7', '#075985'];
+    const BLUE_3 = ['#BAE6FD', '#0EA5E9', '#0369A1'];
+    const SEGMEN_COLOR = BLUE_4;
+
+    const BLUE_SCALE = [
+      [0, '#E0F2FE'],
+      [0.14, '#BAE6FD'],
+      [0.28, '#7DD3FC'],
+      [0.42, '#38BDF8'],
+      [0.57, '#0EA5E9'],
+      [0.71, '#0284C7'],
+      [0.85, '#0369A1'],
+      [1, '#075985']
+    ];
 
     // Mapping cluster number → label segmentasi (hanya dipakai jika diperlukan fallback)
     const clusterToSegmen = (clusterStr) => {
@@ -255,23 +358,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     animVal(document.getElementById('kpi-website'), 0, totalWebsite, 1200, v => Math.round(v).toLocaleString('id-ID'));
 
     // ── SETUP PLOTLY ─────────────────────────────────────────────────
-    const isDark = html.getAttribute('data-theme') === 'dark';
-    const textColor = isDark ? '#f0f2f8' : '#111827';
-    const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
-    // Variabel segmentasi sudah dipindahkan ke atas
+    // Getter functions agar selalu membaca tema yang sedang aktif
+    const getTextColor = () => html.getAttribute('data-theme') === 'dark' ? '#f0f2f8' : '#111827';
+    const getGridColor = () => html.getAttribute('data-theme') === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+
+    // Untuk backward-compat: variabel statis untuk initial render
+    let textColor = getTextColor();
+    let gridColor = getGridColor();
 
     // Base Layout dengan margin dan posisi legend yang diperbaiki
-    const baseLayout = {
-      autosize: true,
-      paper_bgcolor: 'rgba(0,0,0,0)',
-      plot_bgcolor: 'rgba(0,0,0,0)',
-      font: { family: 'Inter, sans-serif', color: textColor },
-      margin: { t: 40, b: 40, l: 50, r: 20 }, // Top margin dilebarkan agar legend tidak nabrak
-      xaxis: { gridcolor: gridColor, zerolinecolor: gridColor },
-      yaxis: { gridcolor: gridColor, zerolinecolor: gridColor },
-      showlegend: true,
-      legend: { orientation: 'h', x: 0, y: 1.15, yanchor: 'bottom', font: { color: textColor } }
+    // Diubah menjadi fungsi agar selalu mendapat warna terkini
+    const getBaseLayout = () => {
+      const tc = getTextColor();
+      const gc = getGridColor();
+      return {
+        autosize: true,
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { family: 'Inter, sans-serif', color: tc },
+        margin: { t: 40, b: 40, l: 50, r: 20 },
+        xaxis: { gridcolor: gc, zerolinecolor: gc },
+        yaxis: { gridcolor: gc, zerolinecolor: gc },
+        showlegend: true,
+        legend: { orientation: 'h', x: 0, y: 1.15, yanchor: 'bottom', font: { color: tc } }
+      };
     };
+    // Initial baseLayout snapshot (untuk chart yang hanya di-render sekali)
+    const baseLayout = getBaseLayout();
 
     // ── HELPERS ───────────────────────────────────────────────────────
     const isTrue = (d, col) => String(d[col] ?? '').trim().toLowerCase() === 'true';
@@ -339,9 +452,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (document.getElementById('chart-medsos')) {
       const counts = SOSMED.map(col => allData.filter(d => isTrue(d, col)).length);
-      const pColor = PLASMA_4;
-      const sortedData = counts.map((count, i) => ({ count, label: SOSMED_LBL[i], color: pColor[i] }))
-        .sort((a, b) => a.count - b.count);
+      const sortedData = counts.map((count, i) => ({ count, label: SOSMED_LBL[i] }))
+        .sort((a, b) => a.count - b.count)
+        .map((item, index) => ({ ...item, color: BLUE_4[index] }));
 
       Plotly.newPlot('chart-medsos', [{
         x: sortedData.map(d => d.label), y: sortedData.map(d => d.count), type: 'bar',
@@ -363,11 +476,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         // ----------------------------------------
 
         rotation: 1,
-        marker: { colors: ['#bd3786', '#fdca26'] },
+        marker: { colors: [BLUE_4[1], BLUE_4[3]] },
         textinfo: 'percent+label',
         textposition: 'outside',
         automargin: true, // PENTING: Agar label di luar tidak terpotong
-        insidetextfont: { color: ['#ffffff', '#111827'], size: 10 },
+        insidetextfont: { color: ['#111827', '#ffffff'], size: 10 },
         outsidetextfont: { color: textColor, size: 11 }
       }], {
         ...baseLayout,
@@ -381,15 +494,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       { label: 'Restoran', data: dataRestoran },
       { label: 'Hiburan Malam', data: dataHiburan }
     ];
-    renderHeatmapTable('heatmap-adopsi', hmRows, ['website', ...SOSMED],
-      (row, col) => col === 'website' ? pctWeb(row.data) : pct(row.data, col),
-      val => {
-        const a = 0.1 + (val / 100) * 0.75;
-        const bg = `rgba(33, 145, 140, ${a.toFixed(2)})`;
-        const fg = val / 100 > 0.55 ? '#ffffff' : textColor;
-        return { bg, fg };
-      }
-    );
+
+    // Fungsi re-render heatmap table yang bisa dipanggil ulang saat ganti tema
+    _reRenderHeatmapTable = (tc) => {
+      renderHeatmapTable('heatmap-adopsi', hmRows, ['website', ...SOSMED],
+        (row, col) => col === 'website' ? pctWeb(row.data) : pct(row.data, col),
+        val => {
+          const a = 0.1 + (val / 100) * 0.75;
+          const bg = `rgba(14, 165, 233, ${a.toFixed(2)})`;
+          const fg = val / 100 > 0.55 ? '#ffffff' : tc;
+          return { bg, fg };
+        }
+      );
+    };
+    _reRenderHeatmapTable(textColor);
 
     const sosmedCounts = SOSMED.map(col => allData.filter(d => isTrue(d, col)).length);
     const topSosmedIdx = sosmedCounts.indexOf(Math.max(...sosmedCounts));
@@ -409,6 +527,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ═══════════════════════════════════════════════════════════════
 
     const renderSegmentasiPage = (sektorName) => {
+      const tc = getTextColor();
+      const currentBaseLayout = getBaseLayout();
+
       const isAll = sektorName === 'Semua';
       const scopedData = isAll ? allData : allData.filter(d => d._sektor === sektorName);
 
@@ -417,31 +538,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         Plotly.react('chart-distribusi', [{
           values: katCounts, labels: SEGMEN_LABEL, type: 'pie', hole: 0.44,
           marker: { colors: SEGMEN_COLOR }, textinfo: 'percent', textposition: 'auto', sort: false,
-          insidetextfont: { color: ['#ffffff', '#ffffff', '#ffffff', '#111827'], size: 16, family: 'Inter, sans-serif' },
-          outsidetextfont: { color: textColor, size: 16, family: 'Inter, sans-serif' }
+          insidetextfont: { color: ['#111827', '#111827', '#ffffff', '#ffffff'], size: 16, family: 'Inter, sans-serif' },
+          outsidetextfont: { color: tc, size: 16, family: 'Inter, sans-serif' }
         }], {
-          ...baseLayout,
+          ...currentBaseLayout,
           margin: { t: 10, b: 40, l: 10, r: 10 },
           showlegend: true,
-          legend: { orientation: 'h', x: 0.5, y: -0.2, xanchor: 'center', font: { color: textColor } }
+          legend: { orientation: 'h', x: 0.5, y: -0.2, xanchor: 'center', font: { color: tc } }
         }, cfg);
       }
 
       if (document.getElementById('chart-kategori-sosmed')) {
         const counts = SOSMED.map(col => scopedData.filter(d => String(d[col]).trim().toLowerCase() === 'true').length);
-        const pColor = PLASMA_4;
-        const sortedData = counts.map((count, i) => ({ count, label: SOSMED_LBL[i], color: pColor[i] }))
-          .sort((a, b) => a.count - b.count);
+        const sortedData = counts.map((count, i) => ({ count, label: SOSMED_LBL[i] }))
+          .sort((a, b) => a.count - b.count)
+          .map((item, index) => ({ ...item, color: BLUE_4[index] }));
 
         Plotly.react('chart-kategori-sosmed', [{
           x: sortedData.map(d => d.label), y: sortedData.map(d => d.count), type: 'bar',
           marker: { color: sortedData.map(d => d.color) },
           text: sortedData.map(d => d.count.toLocaleString('id-ID')),
-          textposition: 'outside', textfont: { color: textColor }
+          textposition: 'outside', textfont: { color: tc }
         }], {
-          ...baseLayout, showlegend: false,
-          xaxis: { ...baseLayout.xaxis, title: 'Platform Media Sosial' },
-          yaxis: { ...baseLayout.yaxis, title: 'Jumlah Pengguna' }
+          ...currentBaseLayout, showlegend: false,
+          xaxis: { ...currentBaseLayout.xaxis, title: 'Platform Media Sosial' },
+          yaxis: { ...currentBaseLayout.yaxis, title: 'Jumlah Pengguna' }
         }, cfg);
       }
 
@@ -458,7 +579,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       const insightText = [
         `Pada tinjauan kategori <strong>${isAll ? 'Semua Sektor' : sektorName}</strong>, kelompok segmen <strong>${bestKat.kat}</strong> berhasil membukukan nilai performa tertinggi dengan capaian rating <strong>${bestKat.score.toFixed(2)}</strong>.`,
         `Tingkat penetrasi platform Instagram tertinggi diamati pada segmen <strong>${SEGMEN_LABEL[topIgKatIdx]}</strong> yang mencapai angka penetrasi sebesar <strong>${igPerKat[topIgKatIdx]}%</strong>.`,
-        `Berdasarkan distribusi segmentasi, mayoritas entitas usaha masih terkonsentrasi pada segmen Sedang (<strong>${pctSedang}%</strong>) dan segmen Rendah (<strong>${pctRendah}%</strong>).`
+        `Berdasarkan distribusi segmentasi, mayoritas entitas usaha masih terkonsentrasi pada segmen Sedang (<strong>${pctSedang}%</strong>) dan segmen Rendah (<strong>${pctRendah}%</strong>).`,
+        `<strong>Pembagian segmentasi berdasarkan jumlah sosmed + ota/odd:</strong><br>
+        1. Penginapan:<br>
+        &nbsp;&nbsp;&nbsp;- rendah (0-6)<br>
+        &nbsp;&nbsp;&nbsp;- sedang (7-12)<br>
+        &nbsp;&nbsp;&nbsp;- tinggi (13-18)<br>
+        &nbsp;&nbsp;&nbsp;- sangat tinggi (19+)<br>
+        2. Restoran:<br>
+        &nbsp;&nbsp;&nbsp;- rendah (0-1)<br>
+        &nbsp;&nbsp;&nbsp;- sedang (2-3)<br>
+        &nbsp;&nbsp;&nbsp;- tinggi (4-5)<br>
+        &nbsp;&nbsp;&nbsp;- sangat tinggi (6-7)<br>
+        3. Hiburan Malam:<br>
+        &nbsp;&nbsp;&nbsp;- rendah (0)<br>
+        &nbsp;&nbsp;&nbsp;- sedang (1)<br>
+        &nbsp;&nbsp;&nbsp;- tinggi (2)<br>
+        &nbsp;&nbsp;&nbsp;- sangat tinggi (3-4)`
       ];
 
       const cardOta = document.getElementById('card-ota');
@@ -470,19 +607,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           const dRes = isAll ? dataRestoran : scopedData;
           const otaCols = ['ShopeeFood', 'GrabFood', 'GoFood'];
-          const otaColors = { ShopeeFood: PLASMA_3[0], GrabFood: PLASMA_3[1], GoFood: PLASMA_3[2] };
           const otaCounts = otaCols.map(col => dRes.filter(d => isTrue(d, col)).length);
-          const otaPcts = otaCounts.map(v => `${Math.round(v / dRes.length * 100)}%`);
+          
+          const otaData = otaCols.map((col, i) => ({ col, count: otaCounts[i] }))
+            .sort((a, b) => a.count - b.count)
+            .map((item, i) => ({ ...item, color: BLUE_3[i] }));
+            
+          const otaPcts = otaData.map(d => `${Math.round(d.count / dRes.length * 100)}%`);
 
           if (document.getElementById('chart-ota')) {
             Plotly.react('chart-ota', [{
-              x: otaCols, y: otaCounts, type: 'bar',
-              marker: { color: otaCols.map(l => otaColors[l]) },
-              text: otaPcts, textposition: 'outside', textfont: { color: textColor, size: 13 }
+              x: otaData.map(d => d.col), y: otaData.map(d => d.count), type: 'bar',
+              marker: { color: otaData.map(d => d.color) },
+              text: otaPcts, textposition: 'outside', textfont: { color: tc, size: 13 }
             }], {
-              ...baseLayout, showlegend: false,
-              xaxis: { ...baseLayout.xaxis, title: 'Platform' },
-              yaxis: { ...baseLayout.yaxis, title: `Restoran (n=${dRes.length})` }
+              ...currentBaseLayout, showlegend: false,
+              xaxis: { ...currentBaseLayout.xaxis, title: 'Platform' },
+              yaxis: { ...currentBaseLayout.yaxis, title: `Restoran (n=${dRes.length})` }
             }, cfg);
           }
 
@@ -517,12 +658,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ── PAGE 3 — CLUSTERING ───────────────────────────────────────
     const renderClusteringPage = (sektorName) => {
+      const tc = getTextColor();
+      const currentBaseLayout = getBaseLayout();
+
       const sectorData = allData.filter(d => d._sektor === sektorName);
       const uniqueTiers = [...new Set(sectorData.map(d => parseInt(d.tier)).filter(c => !isNaN(c)))].sort((a, b) => a - b);
       const KATEGORI_SEKTOR = uniqueTiers.map(c => `Tier ${c}`);
 
-      // Dynamic color palette
-      const colorPalette = ['#FF6B9D', '#FFD93D', '#00D4AA', '#6C63FF', '#FF9F43', '#00CFE8', '#EA5455'];
+      // Dynamic color palette (menggunakan warna soft/pastel agar terlihat lebih lembut tapi tetap mudah dibedakan)
+      const colorPalette = ['#FFB5E8', '#FFC9DE', '#FFFFD1', '#B28DFF', '#AFF8DB', '#B5EAD7', '#C7CEEA'];
       const tierColors = {};
       const tierNumMap = {};
       KATEGORI_SEKTOR.forEach((k, i) => {
@@ -557,13 +701,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         Plotly.react('chart-rating', [
-          { x: KATEGORI_SEKTOR, y: avgScores, name: 'Avg Rating', type: 'bar', marker: { color: '#46039f' } },
-          { x: KATEGORI_SEKTOR, y: medRevs, name: 'Med Reviews', type: 'bar', yaxis: 'y2', marker: { color: '#fdca26' } }
+          { x: KATEGORI_SEKTOR, y: avgScores, name: 'Avg Rating', type: 'bar', marker: { color: BLUE_4[0] } },
+          { x: KATEGORI_SEKTOR, y: medRevs, name: 'Med Reviews', type: 'bar', yaxis: 'y2', marker: { color: BLUE_4[3] } }
         ], {
-          ...baseLayout, barmode: 'group', showlegend: true,
+          ...currentBaseLayout, barmode: 'group', showlegend: true,
           margin: { t: 40, b: 40, l: 50, r: 60 },
-          yaxis: { ...baseLayout.yaxis, title: 'Rating (0-5)' },
-          yaxis2: { title: 'Reviews', overlaying: 'y', side: 'right', showgrid: false, color: textColor }
+          yaxis: { ...currentBaseLayout.yaxis, title: 'Rating (0-5)' },
+          yaxis2: { title: 'Reviews', overlaying: 'y', side: 'right', showgrid: false, color: tc }
         }, cfg);
       }
 
@@ -579,14 +723,20 @@ document.addEventListener('DOMContentLoaded', async () => {
           text: sectorData.map(d => d.title || 'Unknown'),
           marker: {
             size: bSosmed.map(v => v * 4 + 6), color: bSosmed,
-            colorscale: 'Portland', showscale: true, opacity: 0.65,
-            colorbar: { title: 'Platform', tickfont: { color: textColor }, titlefont: { color: textColor } }
+            colorscale: [
+              [0, '#FF9AA2'],
+              [0.25, '#FFDAC1'],
+              [0.5, '#E2F0CB'],
+              [0.75, '#B5EAD7'],
+              [1, '#C7CEEA']
+            ], showscale: true, opacity: 0.85,
+            colorbar: { title: 'Platform', tickfont: { color: tc }, titlefont: { color: tc } }
           }
         }], {
-          ...baseLayout,
+          ...currentBaseLayout,
           showlegend: false,
           xaxis: {
-            ...baseLayout.xaxis,
+            ...currentBaseLayout.xaxis,
             title: 'Total Score',
             type: 'linear',
             tickmode: 'linear',
@@ -594,7 +744,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             range: [-0.2, 5.2],
             dtick: 0.5
           },
-          yaxis: { ...baseLayout.yaxis, title: 'Reviews', type: 'log' }
+          yaxis: { ...currentBaseLayout.yaxis, title: 'Reviews', type: 'log' }
         }, cfg);
       }
 
@@ -619,10 +769,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         Plotly.react('chart-cluster', tierTraces, {
-          ...baseLayout,
-          xaxis: { ...baseLayout.xaxis, title: 'Total Score', type: 'linear', tickmode: 'linear', range: [-0.2, 5.5], dtick: 1 },
-          yaxis: { ...baseLayout.yaxis, title: 'Jumlah Reviews', type: 'log' },
-          legend: { ...baseLayout.legend }
+          ...currentBaseLayout,
+          xaxis: { ...currentBaseLayout.xaxis, title: 'Total Score', type: 'linear', tickmode: 'linear', range: [-0.2, 5.5], dtick: 1 },
+          yaxis: { ...currentBaseLayout.yaxis, title: 'Jumlah Reviews', type: 'log' },
+          legend: { ...currentBaseLayout.legend }
         }, cfg);
       }
 
@@ -686,7 +836,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             corrAnnotations.push({
               x: featureNames[j], y: featureNames[i],
               text: corrMatrix[i][j].toFixed(2),
-              font: { color: Math.abs(corrMatrix[i][j]) > 0.45 ? '#ffffff' : textColor, size: 10 },
+              font: { color: Math.abs(corrMatrix[i][j]) > 0.45 ? '#ffffff' : tc, size: 10 },
               showarrow: false
             });
           }
@@ -694,14 +844,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         Plotly.react('chart-corr-heatmap', [{
           z: corrMatrix, x: featureNames, y: featureNames,
-          type: 'heatmap', colorscale: 'Plasma',
+          type: 'heatmap', colorscale: BLUE_SCALE,
           zmin: -1, zmax: 1, showscale: true,
-          colorbar: { tickfont: { color: textColor }, title: { text: 'r', font: { color: textColor } }, thickness: 12, len: 0.8, xpad: 15 }
+          colorbar: { tickfont: { color: tc }, title: { text: 'r', font: { color: tc } }, thickness: 12, len: 0.8, xpad: 15 }
         }], {
-          ...baseLayout, showlegend: false,
+          ...currentBaseLayout, showlegend: false,
           annotations: corrAnnotations,
-          xaxis: { ...baseLayout.xaxis, side: 'bottom', tickangle: -45 },
-          yaxis: { ...baseLayout.yaxis, autorange: 'reversed' },
+          xaxis: { ...currentBaseLayout.xaxis, side: 'bottom', tickangle: -45 },
+          yaxis: { ...currentBaseLayout.yaxis, autorange: 'reversed' },
           margin: { t: 40, b: 110, l: 110, r: 60 }
         }, cfg);
       }
@@ -709,41 +859,43 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     }; // End renderClusteringPage
 
-    // Initialize with Penginapan
+    // Initialize pages
     renderClusteringPage('Penginapan');
 
-    const clusterFilter = document.getElementById('cluster-sektor-filter');
-    if (clusterFilter) {
-      const btns = clusterFilter.querySelectorAll('.segment-btn');
-      btns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          btns.forEach(b => {
-            b.style.background = 'transparent';
-            b.style.color = 'var(--text-muted)';
-            b.classList.remove('active');
-          });
-          e.target.style.background = '#6C63FF';
-          e.target.style.color = 'white';
-          e.target.classList.add('active');
+    const setupFilter = (filterId, renderFn) => {
+      const filterEl = document.getElementById(filterId);
+      if (filterEl) {
+        const btns = filterEl.querySelectorAll('.segment-btn');
+        btns.forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            btns.forEach(b => {
+              b.style.background = 'transparent';
+              b.style.color = 'var(--text-muted)';
+              b.classList.remove('active');
+            });
+            e.target.style.background = 'var(--accent-blue)';
+            e.target.style.color = 'white';
+            e.target.classList.add('active');
 
-          // Tunggu satu frame agar container sudah settled sebelum Plotly.react membaca dimensi
-          // — ini mencegah chart kecut/squished saat pertama kali ganti sektor
-          requestAnimationFrame(() => {
-            renderClusteringPage(e.target.getAttribute('data-value'));
-
-            // Resize setelah render selesai (frame berikutnya)
             requestAnimationFrame(() => {
-              const activePage = document.querySelector('.page.active');
-              if (activePage) {
-                activePage.querySelectorAll('.js-plotly-plot').forEach(c => {
-                  Plotly.Plots.resize(c);
-                });
-              }
+              renderFn(e.target.getAttribute('data-value'));
+
+              requestAnimationFrame(() => {
+                const activePage = document.querySelector('.page.active');
+                if (activePage) {
+                  activePage.querySelectorAll('.js-plotly-plot').forEach(c => {
+                    Plotly.Plots.resize(c);
+                  });
+                }
+              });
             });
           });
         });
-      });
-    }
+      }
+    };
+
+    setupFilter('analisis-sektor-filter', renderSegmentasiPage);
+    setupFilter('tier-sektor-filter', renderClusteringPage);
 
     // ═══════════════════════════════════════════════════════════════
     // PAGE 4 — SPASIAL
@@ -756,10 +908,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (document.getElementById('chart-heatmap')) {
       const tW = Object.keys(wilCounts), tZ = Object.values(wilCounts);
+      
       Plotly.newPlot('chart-heatmap', [{
         type: 'choropleth', geojson: geojson, locations: tW,
         featureidkey: 'properties.nm_kabkota', z: tZ,
-        colorscale: 'Plasma',
+        colorscale: BLUE_SCALE,
         text: tW.map((w, i) => `<b>${w}</b><br>Usaha: ${tZ[i].toLocaleString('id-ID')}`),
         hoverinfo: 'text', showscale: true,
         colorbar: { tickfont: { color: textColor } }
@@ -782,7 +935,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         labels: topN.map(([k]) => k),
         type: 'pie', hole: 0.05,
         rotation: 0,
-        marker: { colors: PLASMA_6.slice(0, topN.length) },
+        marker: { colors: BLUE_6.slice(0, topN.length).reverse() },
         textinfo: 'percent',
 
         textposition: "auto ",
@@ -792,7 +945,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         outsidetextfont: { color: textColor, size: 12 }
       }], {
         ...baseLayout, showlegend: true,
-        legend: { orientation: 'h', x: 0.5, y: -0.1, xanchor: 'center', yanchor: 'top', font: { color: textColor } },
+        legend: { orientation: 'v', font: { color: textColor } },
         margin: { t: 40, b: 80, l: 40, r: 40 }
       }, cfg);
     }
@@ -849,7 +1002,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         {
           icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>',
           title: 'Rekomendasi Jangka Pendek (Penjangkauan & Pemetaan)', priority: 'high', priorityLabel: 'Prioritas Pemerintah',
-          desc: `Manfaatkan model clustering untuk memetakan usaha di segmen literasi digital terendah. Lakukan pendekatan proaktif (jemput bola) untuk memberikan bantuan teknis dasar (seperti pembuatan titik lokasi peta & akun bisnis) sekaligus melakukan survei mendalam guna mengidentifikasi hambatan utama promosi digital mereka.`,
+          desc: `Manfaatkan model tiering untuk memetakan usaha di segmen literasi digital terendah. Lakukan pendekatan proaktif (jemput bola) untuk memberikan bantuan teknis dasar (seperti pembuatan titik lokasi peta & akun bisnis) sekaligus melakukan survei mendalam guna mengidentifikasi hambatan utama promosi digital mereka.`,
           metric: `Fokus: Pendataan spesifik dan pendampingan langsung pada klaster terbawah.`
         },
         {
@@ -873,7 +1026,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderInsight('insight-rekomendasi', 'Tindak Lanjut & Intervensi Pemerintah', [
       `Temuan ini dapat menjadi landasan bagi Kementerian Pariwisata dan Ekonomi Kreatif (Kemenparekraf) untuk mendorong roda ekonomi pariwisata yang lebih inklusif.`,
-      `Pemerintah dapat memanfaatkan model clustering untuk pendataan dan pemetaan spesifik terhadap kelompok usaha yang masih memiliki kesadaran digital rendah (klaster terbawah).`,
+      `Pemerintah dapat memanfaatkan model tiering untuk pendataan dan pemetaan spesifik terhadap kelompok usaha yang masih memiliki kesadaran digital rendah (klaster terbawah).`,
       `Intervensi dapat difokuskan pada bantuan pembuatan aset digital dasar (seperti titik lokasi peta dan akun bisnis), sosialisasi presensi online, hingga pembinaan teknis merancang promosi efektif.`
     ]);
 
