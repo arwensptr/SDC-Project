@@ -634,7 +634,7 @@ body {
 }
 
 /* ── RESPONSIVE ── */
-@media (max-width: 1200px) {
+@media (max-width: 1024px) {
   .content-grid {
     grid-template-columns: 1fr !important;
   }
@@ -666,6 +666,13 @@ body {
     width: 100%;
     flex: none;
     padding-bottom: 4px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
   }
 
   .brand-title {

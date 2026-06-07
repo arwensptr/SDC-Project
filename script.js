@@ -1030,6 +1030,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       `Intervensi dapat difokuskan pada bantuan pembuatan aset digital dasar (seperti titik lokasi peta dan akun bisnis), sosialisasi presensi online, hingga pembinaan teknis merancang promosi efektif.`
     ]);
 
+    // Global resize listener to ensure Plotly charts resize on window resize/orientation change
+    window.addEventListener('resize', () => {
+      document.querySelectorAll('.page.active .js-plotly-plot').forEach(c => {
+        Plotly.Plots.resize(c);
+      });
+    });
+
   } catch (err) {
     console.error('Gagal memuat data:', err);
   }
