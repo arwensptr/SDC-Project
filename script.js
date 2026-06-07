@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let _downloadData = [];   // will be set once allData is ready
   let _dlCluster = 'all';
-  let _dlKategori = 'all';
+  let _dlKategori = 'Penginapan';
 
   const populateTiers = (sektor) => {
     const tierContainer = document.getElementById('TierChips');
@@ -268,6 +268,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const allData = [...dataPenginapan, ...dataRestoran, ...dataHiburan];
     _downloadData = allData; // Expose data to download modal
+    populateTiers(_dlKategori); // Populate initial tiers for default sector
 
 
     const SEGMEN_LABEL = ['Rendah', 'Sedang', 'Tinggi', 'Tinggi Sekali'];
