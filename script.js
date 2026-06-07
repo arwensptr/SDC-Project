@@ -577,8 +577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const pctRendah = Math.round(scopedData.filter(d => d.kategori === 'Rendah').length / scopedData.length * 100) || 0;
 
       const insightText = [
-        `Pada tinjauan kategori <strong>${isAll ? 'Semua Sektor' : sektorName}</strong>, kelompok segmen <strong>${bestKat.kat}</strong> berhasil membukukan nilai performa tertinggi dengan capaian rating <strong>${bestKat.score.toFixed(2)}</strong>.`,
-        `Tingkat penetrasi platform Instagram tertinggi diamati pada segmen <strong>${SEGMEN_LABEL[topIgKatIdx]}</strong> yang mencapai angka penetrasi sebesar <strong>${igPerKat[topIgKatIdx]}%</strong>.`,
+
         `Berdasarkan distribusi segmentasi, mayoritas entitas usaha masih terkonsentrasi pada segmen Sedang (<strong>${pctSedang}%</strong>) dan segmen Rendah (<strong>${pctRendah}%</strong>).`,
         `<strong>Pembagian segmentasi berdasarkan jumlah sosmed + ota/odd:</strong><br>
         1. Penginapan:<br>
@@ -665,13 +664,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       const uniqueTiers = [...new Set(sectorData.map(d => parseInt(d.tier)).filter(c => !isNaN(c)))].sort((a, b) => a - b);
       const KATEGORI_SEKTOR = uniqueTiers.map(c => `Tier ${c}`);
 
-      // Dynamic color palette (menggunakan warna soft/pastel agar terlihat lebih lembut tapi tetap mudah dibedakan)
-      const colorPalette = ['#FFB5E8', '#FFC9DE', '#FFFFD1', '#B28DFF', '#AFF8DB', '#B5EAD7', '#C7CEEA'];
+      // Dynamic color palette (menggunakan warna vibrant agar lebih kontras dan sangat jelas terlihat)
+      const colorPalette = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
+      const availableSymbols = ['circle', 'square', 'diamond', 'cross', 'triangle-up', 'star', 'hexagon'];
       const tierColors = {};
       const tierNumMap = {};
+      const tierSymbols = {};
       KATEGORI_SEKTOR.forEach((k, i) => {
         tierColors[k] = colorPalette[i % colorPalette.length];
         tierNumMap[k] = uniqueTiers[i];
+        tierSymbols[k] = availableSymbols[i % availableSymbols.length];
       });
 
       const highMedia = sectorData.filter(d => SOSMED.reduce((a, c) => a + (isTrue(d, c) ? 1 : 0), 0) >= 3);
@@ -684,7 +686,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const distText = KATEGORI_SEKTOR.map(kat => `${kat} <strong>${sectorData.filter(d => parseInt(d.tier) === tierNumMap[kat]).length}</strong>`).join(', ');
 
       renderInsight('insight-clustering', `Interpretasi Hasil Tiering: ${sektorName}`, [
-        `Analisis segmentasi tier divisualisasikan dengan mempertimbangkan beberapa variabel fundamental, meliputi: presensi nomor kontak (telepon), kepemilikan aset situs web, serta agregasi pemanfaatan platform media sosial dan OTA.`,
+        `Analisis segmentasi tier divisualisasikan dengan mempertimbangkan beberapa variabel fundamental, meliputi: kepemilikan nomor telepon, situs web, serta agregasi pemanfaatan platform media sosial dan OTA.`,
         `Entitas usaha yang mengelola <strong>minimal 3 platform digital secara aktif</strong> menunjukkan korelasi positif terhadap kepuasan konsumen, dengan rata-rata rating mencapai <strong>${highAvg.toFixed(2)}</strong> dan nilai tengah ulasan sebanyak <strong>${Math.round(highRev).toLocaleString('id-ID')}</strong>.`,
         `Sebaliknya, entitas <strong>tanpa presensi media sosial</strong> cenderung mencatatkan performa di bawah standar optimal, dengan capaian rating <strong>${zeroAvg.toFixed(2)}</strong> dan nilai tengah ulasan terbatas pada <strong>${Math.round(zeroRev).toLocaleString('id-ID')}</strong>.`,
         `Ringkasan distribusi populasi per tier dijabarkan sebagai berikut: ${distText}.`
@@ -712,29 +714,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       if (document.getElementById('chart-bubble')) {
-        // Tambahkan jitter kecil (+- 0.03) agar titik rating tidak tumpang tindih sempurna
-        const bScores = sectorData.map(d => (parseFloat(d.totalScore) || 0) + (Math.random() * 0.06 - 0.03));
-        // Math.max(1) agar aman untuk skala logaritmik
-        const bReviews = sectorData.map(d => Math.max(1, parseInt(d.reviewsCount) || 1));
-        const bSosmed = sectorData.map(d => SOSMED.reduce((a, c) => a + (String(d[c]).trim().toLowerCase() === 'true' ? 1 : 0), 0));
+        const bubbleTraces = KATEGORI_SEKTOR.map(kat => {
+          const subset = sectorData.filter(d => parseInt(d.tier) === tierNumMap[kat]);
 
-        Plotly.react('chart-bubble', [{
-          x: bScores, y: bReviews, mode: 'markers',
-          text: sectorData.map(d => d.title || 'Unknown'),
-          marker: {
-            size: bSosmed.map(v => v * 4 + 6), color: bSosmed,
-            colorscale: [
-              [0, '#FF9AA2'],
-              [0.25, '#FFDAC1'],
-              [0.5, '#E2F0CB'],
-              [0.75, '#B5EAD7'],
-              [1, '#C7CEEA']
-            ], showscale: true, opacity: 0.85,
-            colorbar: { title: 'Platform', tickfont: { color: tc }, titlefont: { color: tc } }
-          }
-        }], {
+          const subScores = subset.map(d => (parseFloat(d.totalScore) || 0) + (Math.random() * 0.06 - 0.03));
+          const subReviews = subset.map(d => Math.max(1, parseInt(d.reviewsCount) || 1));
+          const subSosmed = subset.map(d => SOSMED.reduce((a, c) => a + (String(d[c]).trim().toLowerCase() === 'true' ? 1 : 0), 0));
+
+          return {
+            x: subScores,
+            y: subReviews,
+            mode: 'markers',
+            name: kat,
+            text: subset.map(d => `${d.title || 'Unknown'}<br>Platform Aktif: ${subSosmed[subset.indexOf(d)]}`),
+            marker: {
+              size: 9,
+              color: subSosmed,
+              symbol: tierSymbols[kat],
+              coloraxis: 'coloraxis',
+              opacity: 0.85
+            }
+          };
+        });
+
+        Plotly.react('chart-bubble', bubbleTraces, {
           ...currentBaseLayout,
-          showlegend: false,
+          showlegend: true,
+          coloraxis: {
+            colorscale: 'Viridis',
+            colorbar: { title: 'Platform', tickfont: { color: tc }, titlefont: { color: tc } },
+            cmin: 0,
+            cmax: SOSMED.length
+          },
           xaxis: {
             ...currentBaseLayout.xaxis,
             title: 'Total Score',
@@ -744,7 +755,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             range: [-0.2, 5.2],
             dtick: 0.5
           },
-          yaxis: { ...currentBaseLayout.yaxis, title: 'Reviews', type: 'log' }
+          yaxis: { ...currentBaseLayout.yaxis, title: 'Reviews', type: 'log' },
+          legend: { ...currentBaseLayout.legend }
         }, cfg);
       }
 
@@ -761,9 +773,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             hoverinfo: 'text',
             marker: {
               color: tierColors[kat],
-              size: 8,
-              opacity: 0.7,
-              line: { width: 1, color: 'rgba(255,255,255,0.2)' }
+              symbol: tierSymbols[kat],
+              size: 9,
+              opacity: 0.85,
+              line: { width: 1, color: 'rgba(255,255,255,0.4)' }
             }
           };
         });
@@ -956,7 +969,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const top2Pct = Math.round(top2.reduce((s, [, v]) => s + v, 0) / totalUsaha * 100);
     const bottomKab = sortedKab[sortedKab.length - 1];
 
-    renderInsight('insight-spasial', 'Interpretasi Sebaran Geospasial', [
+    renderInsight('insight-spasial', 'Interpretasi Sebaran Peta', [
       `Analisis sebaran wilayah menunjukkan bahwa <strong>${topKab[0]}</strong> mempertahankan posisi dominannya sebagai sentra pariwisata utama di Bali, menaungi <strong>${topKab[1].toLocaleString('id-ID')} entitas usaha</strong>.`,
       `Terdapat konsentrasi yang masif di wilayah barat dan selatan, di mana dua kabupaten/kota teratas (<strong>${top2.map(([k]) => k).join(' & ')}</strong>) secara kumulatif merepresentasikan <strong>${top2Pct}%</strong> dari total keseluruhan populasi usaha.`,
       `Adapun <strong>${bottomKab[0]}</strong> membukukan jumlah populasi terendah (<strong>${bottomKab[1]} entitas</strong>), mengisyaratkan area ini memiliki potensi perluasan dan pengembangan kapasitas usaha yang signifikan di masa depan.`
