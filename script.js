@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const sectorData = _downloadData.filter(d => (d._sektor || '').toLowerCase() === sektor.toLowerCase());
     const uniqueTiers = [...new Set(sectorData.map(d => parseInt(d.tier)).filter(c => !isNaN(c)))].sort((a, b) => a - b);
-    
+
     uniqueTiers.forEach(t => {
       const btn = document.createElement('button');
       btn.className = 'chip';
@@ -203,11 +203,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     group.addEventListener('click', e => {
       const chip = e.target.closest('.chip');
       if (!chip) return;
-      
+
       const parent = chip.closest('.modal-chips');
       parent.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
-      
+
       if (chip.dataset.type === 'Tier') {
         _dlCluster = chip.dataset.value;
       }
@@ -608,11 +608,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           const dRes = isAll ? dataRestoran : scopedData;
           const otaCols = ['ShopeeFood', 'GrabFood', 'GoFood'];
           const otaCounts = otaCols.map(col => dRes.filter(d => isTrue(d, col)).length);
-          
+
           const otaData = otaCols.map((col, i) => ({ col, count: otaCounts[i] }))
             .sort((a, b) => a.count - b.count)
             .map((item, i) => ({ ...item, color: BLUE_3[i] }));
-            
+
           const otaPcts = otaData.map(d => `${Math.round(d.count / dRes.length * 100)}%`);
 
           if (document.getElementById('chart-ota')) {
@@ -908,7 +908,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (document.getElementById('chart-heatmap')) {
       const tW = Object.keys(wilCounts), tZ = Object.values(wilCounts);
-      
+
       Plotly.newPlot('chart-heatmap', [{
         type: 'choropleth', geojson: geojson, locations: tW,
         featureidkey: 'properties.nm_kabkota', z: tZ,
@@ -1008,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         {
           icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>',
           title: 'Rekomendasi Jangka Panjang (Edukasi & Keberlanjutan)', priority: 'medium', priorityLabel: 'Program Lanjutan',
-          desc: `Kemenparekraf perlu menyelenggarakan program pembinaan berkelanjutan agar pelaku usaha menguasai strategi promosi secara mandiri. Program harus diiringi dengan pendampingan berkala terhadap badan usaha prioritas, serta pembukaan pusat layanan terpadu (<em>helpdesk digital</em>) berbasis tautan daring untuk permohonan pendampingan operasional.`,
+          desc: `Kementerian Pariwisata perlu menyelenggarakan program pembinaan berkelanjutan agar pelaku usaha menguasai strategi promosi secara mandiri. Program harus diiringi dengan pendampingan berkala terhadap badan usaha prioritas, serta pembukaan pusat layanan terpadu (<em>helpdesk digital</em>) berbasis tautan daring untuk permohonan pendampingan operasional.`,
           metric: `Tujuan: Adopsi digital maksimal, engagement tinggi, dan kemandirian pelaku usaha.`
         }
       ];
@@ -1025,7 +1025,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     renderInsight('insight-rekomendasi', 'Tindak Lanjut & Intervensi Pemerintah', [
-      `Temuan ini dapat menjadi landasan bagi Kementerian Pariwisata dan Ekonomi Kreatif (Kemenparekraf) untuk mendorong roda ekonomi pariwisata yang lebih inklusif.`,
+      `Temuan ini dapat menjadi landasan bagi Kementerian Pariwisata (Kemenpar) untuk mendorong roda ekonomi pariwisata yang lebih inklusif.`,
       `Pemerintah dapat memanfaatkan model tiering untuk pendataan dan pemetaan spesifik terhadap kelompok usaha yang masih memiliki kesadaran digital rendah (klaster terbawah).`,
       `Intervensi dapat difokuskan pada bantuan pembuatan aset digital dasar (seperti titik lokasi peta dan akun bisnis), sosialisasi presensi online, hingga pembinaan teknis merancang promosi efektif.`
     ]);
