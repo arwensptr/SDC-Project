@@ -255,18 +255,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   const cfg = { responsive: true, displayModeBar: false };
 
   try {
-    const [dataPenginapan, dataHiburan, dataRestoran, geojson] = await Promise.all([
+    const [dataPenginapan, dataHiburan, dataRestoran, dataBiro, dataTirta, dataSpa, geojson] = await Promise.all([
       parseCSV('Penginapan.csv'),
       parseCSV('Hiburan_Malam.csv'),
       parseCSV('Restoran.csv'),
+      parseCSV('Biro_Perjalanan.csv'),
+      parseCSV('Wisata_Tirta.csv'),
+      parseCSV('Spa.csv'),
       fetch('kabupaten-bali.geojson').then(r => r.json())
     ]);
 
     dataPenginapan.forEach(d => (d._sektor = 'Penginapan'));
     dataRestoran.forEach(d => (d._sektor = 'Restoran'));
     dataHiburan.forEach(d => (d._sektor = 'Hiburan Malam'));
+    dataBiro.forEach(d => { d._sektor = 'Biro Perjalanan'; if (d.YouTube !== undefined && d.YT === undefined) d.YT = d.YouTube; });
+    dataTirta.forEach(d => { d._sektor = 'Wisata Tirta'; if (d.YouTube !== undefined && d.YT === undefined) d.YT = d.YouTube; });
+    dataSpa.forEach(d => { d._sektor = 'Spa'; if (d.YouTube !== undefined && d.YT === undefined) d.YT = d.YouTube; });
 
-    const allData = [...dataPenginapan, ...dataRestoran, ...dataHiburan];
+    const allData = [...dataPenginapan, ...dataRestoran, ...dataHiburan, ...dataBiro, ...dataTirta, ...dataSpa];
     _downloadData = allData; // Expose data to download modal
     populateTiers(_dlKategori); // Populate initial tiers for default sector
 
@@ -315,7 +321,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         else if (val >= 2) d.kategori = 'Sedang';
         else d.kategori = 'Rendah';
       }
-      else if (d._sektor === 'Hiburan Malam') {
+      else if (d._sektor === 'Hiburan Malam' || d._sektor === 'Biro Perjalanan' || d._sektor === 'Wisata Tirta' || d._sektor === 'Spa') {
         const val = parseInt(d.jumlah_sosmed) || 0;
         if (val >= 3) d.kategori = 'Tinggi Sekali';
         else if (val >= 2) d.kategori = 'Tinggi';
@@ -329,7 +335,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sektorData = {
       'Penginapan': dataPenginapan,
       'Restoran': dataRestoran,
-      'Hiburan Malam': dataHiburan
+      'Hiburan Malam': dataHiburan,
+      'Biro Perjalanan': dataBiro,
+      'Wisata Tirta': dataTirta,
+      'Spa': dataSpa
     };
 
     // ── KPI ──────────────────────────────────────────────────────────
@@ -493,7 +502,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const hmRows = [
       { label: 'Penginapan', data: dataPenginapan },
       { label: 'Restoran', data: dataRestoran },
-      { label: 'Hiburan Malam', data: dataHiburan }
+      { label: 'Hiburan Malam', data: dataHiburan },
+      { label: 'Biro Perjalanan', data: dataBiro },
+      { label: 'Wisata Tirta', data: dataTirta },
+      { label: 'Spa', data: dataSpa }
     ];
 
     // Fungsi re-render heatmap table yang bisa dipanggil ulang saat ganti tema
@@ -517,7 +529,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const penFb = pct(dataPenginapan, 'Facebook');
 
     renderInsight('insight-ringkasan', 'Sorotan Utama Eksekutif', [
-      `Terdapat <strong>${totalUsaha.toLocaleString('id-ID')} entitas usaha</strong> pariwisata yang tercatat di wilayah Bali, dengan membukukan nilai rata-rata ulasan sebesar <strong>${avgScore.toFixed(2)} / 5.0</strong>.`,
+      `Terdapat <strong>${totalUsaha.toLocaleString('id-ID')} entitas usaha</strong> pariwisata dari 6 sektor (Penginapan, Restoran, Hiburan Malam, Biro Perjalanan, Wisata Tirta, Spa) yang tercatat di wilayah Bali, dengan membukukan nilai rata-rata ulasan sebesar <strong>${avgScore.toFixed(2)} / 5.0</strong>.`,
       `<strong>Instagram</strong> mendominasi lanskap media sosial dengan <strong>${sosmedCounts[topSosmedIdx].toLocaleString('id-ID')} entitas pengguna aktif</strong>, yang kemudian diikuti oleh platform Facebook.`,
       `Sektor <strong>Penginapan</strong> mencatatkan tingkat adopsi digital tertinggi, dengan penetrasi Instagram mencapai <strong>${penIg}%</strong> dan Facebook sebesar <strong>${penFb}%</strong>.`,
       `Tingkat kepemilikan situs web aktif terpantau rendah di angka <strong>${websitePct}%</strong>, mengindikasikan tingginya tingkat ketergantungan pelaku usaha pada platform media sosial dan ekosistem pihak ketiga.`
@@ -591,7 +603,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         &nbsp;&nbsp;&nbsp;- sedang (2-3)<br>
         &nbsp;&nbsp;&nbsp;- tinggi (4-5)<br>
         &nbsp;&nbsp;&nbsp;- sangat tinggi (6-7)<br>
-        3. Hiburan Malam:<br>
+        3. Hiburan Malam / Biro Perjalanan / Wisata Tirta / Spa:<br>
         &nbsp;&nbsp;&nbsp;- rendah (0)<br>
         &nbsp;&nbsp;&nbsp;- sedang (1)<br>
         &nbsp;&nbsp;&nbsp;- tinggi (2)<br>
@@ -645,6 +657,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ── CITY MAP (shared antara clustering & spasial) ────────────
     const cityMap = {
+      // Format lama (Penginapan, Restoran, Hiburan Malam)
       'Badung Regency': 'BADUNG', 'BADUNG SELATAN': 'BADUNG',
       'Denpasar City': 'DENPASAR', 'Denpasar': 'DENPASAR',
       'Denpasar Barat': 'DENPASAR', 'denpasar/pamogan': 'DENPASAR',
@@ -653,7 +666,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       'Buleleng Regency': 'BULELENG', 'Tabanan Regency': 'TABANAN',
       'Bangli Regency': 'BANGLI', 'Klungkung Regency': 'KLUNGKUNG',
       'Tuban': 'BADUNG', 'pemecutan': 'DENPASAR',
-      'Singaraja': 'BULELENG', 'Singraja': 'BULELENG'
+      'Singaraja': 'BULELENG', 'Singraja': 'BULELENG',
+      // Format baru (Biro Perjalanan, Wisata Tirta, Spa)
+      'Kabupaten Badung': 'BADUNG', 'Kabupaten Gianyar': 'GIANYAR',
+      'Kabupaten Buleleng': 'BULELENG', 'Kabupaten Tabanan': 'TABANAN',
+      'Kabupaten Jembrana': 'JEMBRANA', 'Kabupaten Karangasem': 'KARANGASEM',
+      'Kabupaten Klungkung': 'KLUNGKUNG', 'Kabupaten Bangli': 'BANGLI',
+      'Kota Denpasar': 'DENPASAR', 'Regency': 'BADUNG'
     };
 
     // ── PAGE 3 — CLUSTERING ───────────────────────────────────────
@@ -803,7 +822,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const features = {
           'Total Score': sectorData.map(d => parseRobust(d.totalScore)),
           'Reviews Count': sectorData.map(d => parseRobust(d.reviewsCount)),
-          'Jumlah Sosmed': sectorData.map(d => parseRobust(d.jumlah_sosmed_ota ?? d.jumlah_sosmed_ODD ?? d.jumlah_sosmed)),
+          'Jumlah Sosmed': sectorData.map(d => parseRobust(d.jumlah_sosmed_ota ?? d.jumlah_sosmed_ODD ?? d.jumlah_sosmed ?? 0)),
           'Has Website': sectorData.map(d => parseRobust(d.has_website)),
           'Has Phone': sectorData.map(d => parseRobust(d.has_phone))
         };
